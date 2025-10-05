@@ -18,7 +18,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { ReceiptTemplate } from '@/components/receipt-template';
+// NOTE: Assuming you will fix the export in receipt-template.tsx as discussed
+import ReceiptTemplate from '@/components/receipt-template'; 
 import { addPaymentToOrder, deleteOrder, getOrders, getCustomers, deletePaymentFromOrder } from '@/lib/data'; 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -116,6 +117,7 @@ const InvoiceTable = ({ invoices, onRowClick, onDeleteClick, sortConfig, request
 );
 
 
+// This is the main component you import as a named export in page.tsx
 export function InvoicesClient({ orders: initialOrders, customers: initialCustomers }: { orders: Order[], customers: Customer[] }) {
     // --- EXISTING STATE DECLARATIONS ---
     const [allInvoices, setAllInvoices] = useState<Order[]>(initialOrders);
@@ -406,7 +408,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                         onRowClick={handleRowClick}
                         onDeleteClick={handleInvoiceDeleteClick}
                         sortConfig={sortConfig}
-                        requestSort={requestDraw}
+                        requestSort={requestSort}
                         customers={customers}
                     />
                 </TabsContent>
