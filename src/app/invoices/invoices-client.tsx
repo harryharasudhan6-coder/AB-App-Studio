@@ -19,7 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-// ⭐️ FINAL FIX: Using default import to match your 'export default' in receipt-template.tsx ⭐️
+// NOTE: Changed to default import to match your likely setup, adjust if you use named export
 import ReceiptTemplate from '@/components/receipt-template'; 
 
 import { addPaymentToOrder, deleteOrder, getOrders, getCustomers, deletePaymentFromOrder } from '@/lib/data'; 
@@ -512,7 +512,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
 											</span>
 										</div>
                 
-										{/* THIS IS THE DROPDOWN THAT RENDERS THE DELETE BUTTON */}
+										{/* This DropdownMenu replaces the conflicting buttons */}
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -614,7 +614,9 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                             <Button onClick={() => setReceiptToPrint(null)} variant="ghost">Close</Button>
                         </CardHeader>
                         <CardContent>
+                            {/* NOTE: If ReceiptTemplate is NOT a default export, change 'ReceiptTemplate' below to '{ ReceiptTemplate }' */}
                             <ReceiptTemplate 
+                                // NOTE: Removed receiptRef since default exports often don't support ref prop unless wrapped in forwardRef
                                 order={receiptToPrint.order} 
                                 payment={receiptToPrint.payment} 
                                 historicalPayments={receiptToPrint.historicalPayments} 
