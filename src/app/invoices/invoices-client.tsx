@@ -13,13 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Receipt, Trash2, Share2, ArrowUpDown, MoreHorizontal, Edit } from 'lucide-react';
+// Note: Keeping icons imported for external use (e.g., table headers, Loader)
+import { Loader2, Receipt, Trash2, Share2, ArrowUpDown, MoreHorizontal, Edit } from 'lucide-react'; 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-// NOTE: Changed to default import to match your likely setup, adjust if you use named export
+// NOTE: Changed to default import to match your likely setup
 import ReceiptTemplate from '@/components/receipt-template'; 
 
 import { addPaymentToOrder, deleteOrder, getOrders, getCustomers, deletePaymentFromOrder } from '@/lib/data'; 
@@ -93,7 +94,8 @@ const InvoiceTable = ({ invoices, onRowClick, onDeleteClick, sortConfig, request
                                     <DropdownMenuContent align="end">
                                         <SheetTrigger asChild>
                                             <DropdownMenuItem onClick={() => onRowClick(invoice)}>
-                                                <Edit className="mr-2 h-4 w-4" /> View/Edit Invoice
+                                                {/* Edit icon removed here as well for consistency */}
+                                                View/Edit Invoice
                                             </DropdownMenuItem>
                                         </SheetTrigger>
 
@@ -104,7 +106,8 @@ const InvoiceTable = ({ invoices, onRowClick, onDeleteClick, sortConfig, request
                                                 onClick={() => onDeleteClick(invoice)} // setInvoiceToDelete
                                                 className="text-destructive focus:text-destructive"
                                             >
-                                                <Trash2 className="mr-2 h-4 w-4" /> Delete Invoice
+                                                {/* Trash2 icon removed here as well for consistency */}
+                                                Delete Invoice
                                             </DropdownMenuItem>
                                         </AlertDialogTrigger>
                                     </DropdownMenuContent>
@@ -498,7 +501,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                             <Separator className="my-4" />
                             <h3 className="text-lg font-semibold mb-2">Payment Records</h3>
 
-                            {/* ⭐️ GUARANTEED DROPDOWN MENU FOR ALL ACTIONS ⭐️ */}
+                            {/* ⭐️ GUARANTEED DROPDOWN MENU - NO ICONS HERE ⭐️ */}
                             {selectedInvoice.payments.length === 0 ? (
 								<p className="text-sm text-gray-500">No payment records found for this invoice.</p>
 							) : (
@@ -512,7 +515,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
 											</span>
 										</div>
                 
-										{/* This DropdownMenu replaces the conflicting buttons */}
+										{/* This DropdownMenu uses the three-dot button */}
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -522,21 +525,19 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 
-                                                {/* 1. Download Receipt Action */}
+                                                {/* 1. Download Receipt Action - NO ICON */}
                                                 <DropdownMenuItem onClick={() => handlePrintReceipt(payment)} disabled={isReceiptLoading}>
-                                                    <Receipt className="mr-2 h-4 w-4" />
                                                     Download Receipt
                                                 </DropdownMenuItem>
 
-                                                {/* 2. Share Receipt Action */}
+                                                {/* 2. Share Receipt Action - NO ICON */}
                                                 <DropdownMenuItem onClick={() => handleWhatsAppShare(payment)}>
-                                                    <Share2 className="mr-2 h-4 w-4" />
                                                     Share Receipt
                                                 </DropdownMenuItem>
 
                                                 <DropdownMenuSeparator />
 
-                                                {/* 3. Delete Payment Action (Wrapped in AlertDialog) */}
+                                                {/* 3. Delete Payment Action - NO ICON */}
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <DropdownMenuItem 
@@ -545,7 +546,6 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                                                             className="text-red-600 focus:text-red-600 cursor-pointer"
                                                             disabled={isDeleting}
                                                         >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
                                                             Delete Payment
                                                         </DropdownMenuItem>
                                                     </AlertDialogTrigger>
@@ -577,7 +577,6 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                                                 </AlertDialog>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
-                                        {/* ⭐️ END GUARANTEED DROPDOWN MENU ⭐️ */}
 									</div>
 								))}
 							</div>
@@ -614,9 +613,8 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                             <Button onClick={() => setReceiptToPrint(null)} variant="ghost">Close</Button>
                         </CardHeader>
                         <CardContent>
-                            {/* NOTE: If ReceiptTemplate is NOT a default export, change 'ReceiptTemplate' below to '{ ReceiptTemplate }' */}
                             <ReceiptTemplate 
-                                // NOTE: Removed receiptRef since default exports often don't support ref prop unless wrapped in forwardRef
+                                receiptRef={receiptRef} 
                                 order={receiptToPrint.order} 
                                 payment={receiptToPrint.payment} 
                                 historicalPayments={receiptToPrint.historicalPayments} 
