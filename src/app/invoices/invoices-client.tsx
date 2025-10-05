@@ -465,7 +465,7 @@ export default function InvoicesClient() {
 								{/* Sort payments by date descending for history view */}
 								{selectedInvoice.payments.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((payment) => (
 									<div key={payment.id} className="flex justify-between items-center p-3 border rounded-md">
-										<div className="flex flex-col">
+										<div className="flex flex-col w-3/4">
 											<span className="font-medium">Amount: {formatNumber(payment.amount)}</span>
 											<span className="text-sm text-gray-600">
 												{new Date(payment.date).toLocaleDateString('en-IN')} via {payment.mode}
