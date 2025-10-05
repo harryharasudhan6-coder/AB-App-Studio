@@ -19,10 +19,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-// ⭐️ FIX: Changed to default import to match your 'export default' in receipt-template.tsx ⭐️
+// ⭐️ FINAL FIX: Using default import to match your 'export default' in receipt-template.tsx ⭐️
 import ReceiptTemplate from '@/components/receipt-template'; 
 
-// NOTE: Assuming you have deleteProductFromDB, addPaymentToOrder, deleteOrder, etc. in data.ts
 import { addPaymentToOrder, deleteOrder, getOrders, getCustomers, deletePaymentFromOrder } from '@/lib/data'; 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -183,7 +182,6 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
     const handleDeletePayment = async (customerId: string, orderId: string, paymentId: string) => {
         setIsDeleting(true);
         try {
-            // NOTE: Ensure your deletePaymentFromOrder function takes (customerId, orderId, paymentId)
             await deletePaymentFromOrder(customerId, orderId, paymentId); 
             toast({
                 title: "Payment Deleted",
@@ -412,7 +410,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                         onRowClick={handleRowClick}
                         onDeleteClick={handleInvoiceDeleteClick}
                         sortConfig={sortConfig}
-                        requestSort={requestOut}
+                        requestSort={requestSort}
                         customers={customers}
                     />
                 </TabsContent>
@@ -500,7 +498,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                             <Separator className="my-4" />
                             <h3 className="text-lg font-semibold mb-2">Payment Records</h3>
 
-                            {/* ⭐️ CORRECTED PAYMENT RECORDS LIST WITH DROPDOWN ⭐️ */}
+                            {/* ⭐️ GUARANTEED DROPDOWN MENU FOR ALL ACTIONS ⭐️ */}
                             {selectedInvoice.payments.length === 0 ? (
 								<p className="text-sm text-gray-500">No payment records found for this invoice.</p>
 							) : (
@@ -514,7 +512,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
 											</span>
 										</div>
                 
-										{/* ⭐️ GUARANTEED DROPDOWN MENU FOR ALL ACTIONS ⭐️ */}
+										{/* THIS IS THE DROPDOWN THAT RENDERS THE DELETE BUTTON */}
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -617,7 +615,6 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                         </CardHeader>
                         <CardContent>
                             <ReceiptTemplate 
-                                // NOTE: Removed receiptRef here, as default export components often don't support ref prop unless wrapped in forwardRef
                                 order={receiptToPrint.order} 
                                 payment={receiptToPrint.payment} 
                                 historicalPayments={receiptToPrint.historicalPayments} 
