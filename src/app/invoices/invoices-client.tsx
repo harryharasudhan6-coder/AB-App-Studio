@@ -503,6 +503,7 @@ export default function InvoicesClient() {
 														title="Delete Payment Record" 
 														className="text-red-500 hover:text-red-700"
 														disabled={isDeleting}
+														onClick={() => alert("Delete clicked!")} // Add a simple alert for testing
 													>
 														<Trash2 className="h-4 w-4" />
 													</Button>

@@ -18,7 +18,7 @@ import { Loader2, Receipt, Trash2, Share2, ArrowUpDown } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { ReceiptTemplate } from '@/components/receipt-template';
+import ReceiptTemplate from '@/components/receipt-template';
 import { addPaymentToOrder, getOrders, getCustomers } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 

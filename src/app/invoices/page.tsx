@@ -1,7 +1,7 @@
 
 import AppLayout from "@/components/app-layout";
 import { getCustomers, getOrders } from "@/lib/data";
-import { InvoicesClient } from "./invoices-client";
+import InvoicesClient from './invoices-client';
 
 export default async function InvoicesPage() {
     const customers = await getCustomers();
