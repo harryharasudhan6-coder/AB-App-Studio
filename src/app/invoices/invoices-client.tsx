@@ -472,41 +472,68 @@ export default function InvoicesClient() {
 											</span>
 										</div>
                 
-										<div className="flex space-x-2">
-											{/* 1. Print Receipt Button (Existing) */}
-											<Button 
-												variant="ghost" 
-												size="icon" 
-												title="Print Receipt"
-												onClick={() => handleSetReceiptData(payment)}
-												disabled={isReceiptLoading}
-											>
-												<Receipt className="h-4 w-4" />
-											</Button>
-                    
-											{/* 2. WhatsApp Share Button */}
-											<Button 
-												variant="ghost" 
-												size="icon" 
-												title="Share Receipt (WhatsApp)"
-												onClick={() => handleWhatsAppShare(payment)} 
-											>
-												<Share2 className="h-4 w-4" />
-											</Button>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+											{/* This is the single visible three-dot button */}
+												<Button variant="ghost" className="h-8 w-8 p-0">
+													<span className="sr-only">Open actions menu</span>
+													<MoreHorizontal className="h-4 w-4" />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+        
+												{/* 1. Download Receipt Action */}
+												<DropdownMenuItem onClick={() => handleSetReceiptData(payment)} disabled={isReceiptLoading}>
+													<Receipt className="mr-2 h-4 w-4" />
+													Download Receipt
+												</DropdownMenuItem>
 
-											{/* ⭐️ 3. DELETE PAYMENT BUTTON - The key fix ⭐️ */}
-											<AlertDialog>
-												<AlertDialogTrigger asChild>
-													<Button 
-														variant="ghost" 
-														size="icon" 
-														title="Delete Payment Record" 
-														className="text-red-500 hover:text-red-700"
-														disabled={isDeleting}
-														onClick={() => alert("Delete clicked!")} // Add a simple alert for testing
-													>
-														<Trash2 className="h-4 w-4" />
-													</Button>
+												{/* 2. Share Receipt Action */}
+												<DropdownMenuItem onClick={() => handleWhatsAppShare(payment)}>
+													<Share2 className="mr-2 h-4 w-4" />
+													Share Receipt
+												</DropdownMenuItem>
+
+												{/* 3. Delete Payment Action (Wrapped in AlertDialog) */}
+			<AlertDialog>
+				<AlertDialogTrigger asChild>
+					<DropdownMenuItem 
+						// Prevents the dropdown from closing when clicking the trigger
+						onSelect={(e) => e.preventDefault()}
+						className="text-red-600 focus:text-red-600 cursor-pointer"
+					>
+						<Trash2 className="mr-2 h-4 w-4" />
+						Delete Payment
+					</DropdownMenuItem>
+				</AlertDialogTrigger>
+            
+            {/* ALERT DIALOG CONTENT */}
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Payment Deletion</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure you want to delete this payment of <span className="font-bold">{formatNumber(payment.amount)}</span>? This action is permanent and will affect the invoice balance and customer running balance.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                        onClick={() => handleDeletePayment(
+                            selectedInvoice.customerId,
+                            selectedInvoice.id,
+                            payment.id
+                        )}
+                        disabled={isDeleting}
+                        className="bg-destructive hover:bg-red-700"
+                    >
+                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        Delete Record
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </DropdownMenuContent>
+</DropdownMenu>
 												</AlertDialogTrigger>
 												<AlertDialogContent>
 													<AlertDialogHeader>
