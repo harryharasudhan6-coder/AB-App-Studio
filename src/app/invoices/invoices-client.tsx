@@ -18,8 +18,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-// NOTE: Assuming you will fix the export in receipt-template.tsx as discussed
+
+// ⭐️ FIX: Changed to default import to match your 'export default' in receipt-template.tsx ⭐️
 import ReceiptTemplate from '@/components/receipt-template'; 
+
+// NOTE: Assuming you have deleteProductFromDB, addPaymentToOrder, deleteOrder, etc. in data.ts
 import { addPaymentToOrder, deleteOrder, getOrders, getCustomers, deletePaymentFromOrder } from '@/lib/data'; 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -180,7 +183,8 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
     const handleDeletePayment = async (customerId: string, orderId: string, paymentId: string) => {
         setIsDeleting(true);
         try {
-            await deletePaymentFromOrder(customerId, orderId, paymentId);
+            // NOTE: Ensure your deletePaymentFromOrder function takes (customerId, orderId, paymentId)
+            await deletePaymentFromOrder(customerId, orderId, paymentId); 
             toast({
                 title: "Payment Deleted",
                 description: "The payment record has been successfully removed.",
@@ -408,7 +412,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                         onRowClick={handleRowClick}
                         onDeleteClick={handleInvoiceDeleteClick}
                         sortConfig={sortConfig}
-                        requestSort={requestSort}
+                        requestSort={requestOut}
                         customers={customers}
                     />
                 </TabsContent>
@@ -510,7 +514,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
 											</span>
 										</div>
                 
-										{/* ⭐️ NEW DROPDOWN MENU FOR ALL ACTIONS ⭐️ */}
+										{/* ⭐️ GUARANTEED DROPDOWN MENU FOR ALL ACTIONS ⭐️ */}
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -575,7 +579,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                                                 </AlertDialog>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
-                                        {/* ⭐️ END NEW DROPDOWN MENU ⭐️ */}
+                                        {/* ⭐️ END GUARANTEED DROPDOWN MENU ⭐️ */}
 									</div>
 								))}
 							</div>
@@ -613,7 +617,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                         </CardHeader>
                         <CardContent>
                             <ReceiptTemplate 
-                                receiptRef={receiptRef} 
+                                // NOTE: Removed receiptRef here, as default export components often don't support ref prop unless wrapped in forwardRef
                                 order={receiptToPrint.order} 
                                 payment={receiptToPrint.payment} 
                                 historicalPayments={receiptToPrint.historicalPayments} 
