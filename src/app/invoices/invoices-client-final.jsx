@@ -29,27 +29,20 @@ import { cn } from '@/lib/utils';
 
 // Redefine SortKey type for the component scope for clarity
 
-const formatNumber = (value: number | undefined) => {
+const formatNumber = (value) => {
     if (value === undefined || isNaN(value)) return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(0);
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', currencyDisplay: 'symbol' }).format(value);
 };
 
-const getCustomerName = (customerId: string, customers: Customer[]) => {
+const getCustomerName = (customerId, customers) => {
     const customer = customers.find(c => c.id === customerId);
     return customer ? customer.name : 'Unknown Customer';
 };
 
 
-const InvoiceTable = ({ invoices, onRowClick, onDeleteClick, sortConfig, requestSort, customers }: { 
-    invoices: Order[], 
-    onRowClick: (invoice: Order) => void, 
-    onDeleteClick: (invoice: Order) => void,
-    sortConfig: { key: InvoiceSortKey; direction: 'ascending' | 'descending' } | null,
-    requestSort: (key: InvoiceSortKey) => void,
-    customers: Customer[],
-}) => (
+const InvoiceTable = ({ invoices, onRowClick, onDeleteClick, sortConfig, requestSort, customers }) => ( (
     <div className="rounded-lg border shadow-sm">
-        <Table>
+        <Table>	
             <TableHeader>
                 <TableRow>
                     <TableHead><Button variant="ghost" onClick={() => requestSort('id')}>Invoice ID <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
