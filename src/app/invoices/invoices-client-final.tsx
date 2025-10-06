@@ -140,7 +140,9 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
     
     // --- NEW PAYMENT FORM STATE (Assumed existing) ---
     const [paymentAmount, setPaymentAmount] = useState<string>('');
-    const [paymentMethod, setPaymentMode] = useState<PaymentMode>('Cash'); 
+    const [paymentMethod, setPaymentMode] = useState<PaymentMode>('Cash');
+	const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]); // Defaults to today's date
+	const [paymentNotes, setPaymentNotes] = useState<string>('');
     const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
     // ⭐️ NEW STATE FOR PAYMENT DELETION ⭐️
@@ -218,7 +220,8 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                 {
                     amount: amount,
                     mode: paymentMethod,
-                    date: new Date().toISOString(),
+                    date: paymentDate,
+					notes: paymentNotes, 
                     recordedBy: 'User' // Assuming a default value
                 }
             );
@@ -245,6 +248,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
             }
 
             setPaymentAmount(''); // Clear form
+			setPaymentNotes(''); 
         } catch (error) {
             toast({ title: "Payment Failed", description: "Failed to record payment. See console for details.", variant: "destructive" });
             console.error("Error recording payment:", error);
@@ -484,12 +488,22 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Cash">Cash</SelectItem>
+													<SelectItem value="UPI">UPI</SelectItem> {/* ⭐️ ADDED UPI ⭐️ */}
                                                     <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                                                     <SelectItem value="Credit Card">Credit Card</SelectItem>
-                                                    <SelectItem value="Mobile Money">Mobile Money</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
+										<div className="space-y-2">
+											<Label htmlFor="paymentNotes">Notes (Optional)</Label>
+											<Input
+												id="paymentNotes"
+												value={paymentNotes}
+												onChange={(e) => setPaymentNotes(e.target.value)}
+												placeholder="e.g. Cheque No. 12345"
+											/>
+										</div>
+
                                         <Button type="submit" className="w-full" disabled={isPaymentLoading || parseFloat(paymentAmount) <= 0 || (selectedInvoice.balanceDue ?? 0) <= 0}>
                                             {isPaymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                             Record Payment
