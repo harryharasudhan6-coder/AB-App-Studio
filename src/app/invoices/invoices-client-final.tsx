@@ -469,47 +469,68 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
                                     <CardTitle>Record New Payment</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <form onSubmit={handleRecordPayment} className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="paymentAmount">Amount to Pay</Label>
-                                            <Input
-                                                id="paymentAmount"
-                                                type="number"
-                                                step="0.01"
-                                                max={selectedInvoice.balanceDue}
-                                                value={paymentAmount}
-                                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="paymentMethod">Payment Method</Label>
-                                            <Select value={paymentMethod} onValueChange={v => setPaymentMode(v as PaymentMode)}>
-                                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Cash">Cash</SelectItem>
-													<SelectItem value="UPI">UPI</SelectItem> {/* ⭐️ ADDED UPI ⭐️ */}
-                                                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                                                    <SelectItem value="Credit Card">Credit Card</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+									<form onSubmit={handleRecordPayment} className="space-y-4">
+										{/* 1. Amount to Pay */}
 										<div className="space-y-2">
-											<Label htmlFor="paymentNotes">Notes (Optional)</Label>
+											<Label htmlFor="paymentAmount">Amount to Pay</Label>
 											<Input
-												id="paymentNotes"
-												value={paymentNotes}
-												onChange={(e) => setPaymentNotes(e.target.value)}
-												placeholder="e.g. Cheque No. 12345"
+												id="paymentAmount"
+												type="number"
+												step="0.01"
+												max={selectedInvoice.balanceDue}
+												value={paymentAmount}
+												onChange={(e) => setPaymentAmount(e.target.value)}
+												required
 											/>
 										</div>
 
-                                        <Button type="submit" className="w-full" disabled={isPaymentLoading || parseFloat(paymentAmount) <= 0 || (selectedInvoice.balanceDue ?? 0) <= 0}>
-                                            {isPaymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                            Record Payment
-                                        </Button>
-                                    </form>
-                                </CardContent>
+										{/* 2. Payment Date and Payment Method (GRID: FIXES MISSING DATE AND LAYOUT) */}
+										<div className="grid grid-cols-2 gap-4">
+            
+										{/* Payment Date Input */}
+										<div className="space-y-2">
+											<Label htmlFor="paymentDate">Payment Date</Label>
+											<Input
+												id="paymentDate"
+												type="date"
+												value={paymentDate}
+												onChange={(e) => setPaymentDate(e.target.value)}
+												required
+											/>
+										</div>
+            
+										{/* Payment Method Select (now includes UPI) */}
+										<div className="space-y-2">
+											<Label htmlFor="paymentMethod">Payment Method</Label>
+											<Select value={paymentMethod} onValueChange={v => setPaymentMode(v as PaymentMode)}>
+												<SelectTrigger><SelectValue /></SelectTrigger>
+												<SelectContent>
+													<SelectItem value="Cash">Cash</SelectItem>
+													<SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+													<SelectItem value="UPI">UPI</SelectItem>
+													<SelectItem value="Credit Card">Credit Card</SelectItem>
+												</SelectContent>
+											</Select>
+										</div>
+									</div>
+
+									{/* 3. Notes (Optional) */}
+									<div className="space-y-2">
+										<Label htmlFor="paymentNotes">Notes (Optional)</Label>
+										<Input
+											id="paymentNotes"
+											value={paymentNotes}
+											onChange={(e) => setPaymentNotes(e.target.value)}
+											placeholder="e.g. Cheque No. 12345"
+										/>
+									</div>
+
+									<Button type="submit" className="w-full" disabled={isPaymentLoading || parseFloat(paymentAmount) <= 0 || (selectedInvoice.balanceDue ?? 0) <= 0}>
+										{isPaymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+										Record Payment
+									</Button>
+								</form>
+							</CardContent>
                             </Card>
 
                             <Separator className="my-4" />
