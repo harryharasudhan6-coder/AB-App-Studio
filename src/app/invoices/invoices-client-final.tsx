@@ -1,5 +1,9 @@
 'use client';
 
+// FORCE VERCEL REBUILD [10/07/2025]
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+//
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { Order, Payment, PaymentMode, Customer, SortKey } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -667,4 +671,5 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
             )}
         </div>
     );
+
 }
