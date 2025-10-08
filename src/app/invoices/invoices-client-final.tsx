@@ -207,7 +207,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
         }
     };
 
-    // --- EXISTING HANDLERS ---
+    // --- EXISTING 	RS ---
     const handleRecordPayment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedInvoice || parseFloat(paymentAmount) <= 0 || isPaymentLoading) return;
@@ -218,7 +218,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
         try {
             const newPayment = await addPaymentToOrder(
                 selectedInvoice.customerId,
-                selectedInvoice.id,
+                selectedInvoice._id,
                 {
                     amount: amount,
                     mode: paymentMethod,

@@ -101,6 +101,7 @@ export interface Purchase {
 
 
 export interface Order {
+  _id?: string;
   id:string;
   customerId: string;
   customerName: string;
