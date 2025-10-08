@@ -509,7 +509,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
 										<div className="space-y-2">
 											<Label htmlFor="paymentMethod">Payment Method</Label>
 											<Select value={paymentMethod} onValueChange={v => setPaymentMode(v as PaymentMode)}>
-												<SelectTrigger><SelectValue /></SelectTrigger>
+												<SelectTrigger id="paymentMethod"><SelectValue /></SelectTrigger>
 												<SelectContent>
 													<SelectItem value="Cash">Cash</SelectItem>
 													<SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
