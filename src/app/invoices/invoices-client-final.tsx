@@ -207,9 +207,11 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
         }
     };
 
-    // --- EXISTING 	RS ---
+	// --- FINAL CORRECTED HANDLER ---
     const handleRecordPayment = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // 1. Ensure the necessary data is present before proceeding
         if (!selectedInvoice || parseFloat(paymentAmount) <= 0 || isPaymentLoading) return;
         
         setIsPaymentLoading(true);
@@ -218,7 +220,8 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
         try {
             const newPayment = await addPaymentToOrder(
                 selectedInvoice.customerId,
-                selectedInvoice._id,
+                // ⭐️ FINAL FIX: Use the 'id' field, which contains the unique Order ID (ORD-XXXXXX) ⭐️
+                selectedInvoice.id, 
                 {
                     amount: amount,
                     mode: paymentMethod,
@@ -258,6 +261,7 @@ export function InvoicesClient({ orders: initialOrders, customers: initialCustom
             setIsPaymentLoading(false);
         }
     };
+    // --- END FINAL CORRECTED HANDLER ---
 
     const handleDeleteInvoice = async () => {
         if (!invoiceToDelete) return;
