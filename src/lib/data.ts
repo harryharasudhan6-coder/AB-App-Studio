@@ -166,6 +166,7 @@ export const getOrders = async (): Promise<Order[]> => {
         return snapshot.docs.map(doc => ({ 
             ...doc.data(), // Loads all document fields first (including human-readable 'id')
             _id: doc.id,    // Overwrites/Adds: Maps the cryptic database ID to the required '_id' field
+		} as Order));
     } catch (error) {
         console.error("Error fetching orders: ", error);
         return [];
