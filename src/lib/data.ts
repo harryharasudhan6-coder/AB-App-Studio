@@ -160,13 +160,11 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
 
 // ORDER & PAYMENT FUNCTIONS
 
-export const getOrders = async (): Promise<Order[]> => {
+eexport const getOrders = async (): Promise<Order[]> => {
     try {
         const snapshot = await getDocs(collection(db, 'orders'));
-        return snapshot.docs.map(doc => ({ 
-            ...doc.data(), // Loads all document fields first (including human-readable 'id')
-            _id: doc.id,    // Overwrites/Adds: Maps the cryptic database ID to the required '_id' field
-		} as Order));
+        // Reverting the mapping to its original, safe state:
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
     } catch (error) {
         console.error("Error fetching orders: ", error);
         return [];
