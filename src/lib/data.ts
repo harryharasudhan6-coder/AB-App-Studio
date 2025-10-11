@@ -159,25 +159,29 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
 
 
 // ORDER & PAYMENT FUNCTIONS
-
 export const getOrders = async (): Promise<Order[]> => {
     try {
-        // CRITICAL FIX: We are assuming data might be stored in a shared or user-specific path
-        // We will try the simple 'orders' collection first.
-        const ordersCollectionRef = collection(db, 'orders'); 
-
-        // ⚠️ If the simple 'orders' path fails, you may need to manually adjust this line
-        //    based on your Firebase structure (e.g., 'users/userId/orders' or 'public/orders')
-
-        const snapshot = await getDocs(ordersCollectionRef);
+        // FINAL CRITICAL FIX: The collection name must be 'order' (singular), as seen in the Firebase console.
+        const ordersCollectionRef = collection(db, 'order'); 
         
+        // IMPORTANT: We must also order by a field like 'createdAt' or 'orderNumber'
+        // to match how getCustomers is ordered, preventing potential Firestore errors.
+        const q = query(ordersCollectionRef, orderBy('createdAt', 'desc')); 
+        
+        let snapshot = await getDocs(q); // Use the query 'q'
+        
+        if (snapshot.docs.length === 0) {
+             console.log("No documents found in the confirmed 'order' path. Fetch failed.");
+        }
+        
+        // This mapping correctly extracts the data and the document ID (for payment recording)
         return snapshot.docs.map(doc => ({ 
             ...doc.data(), 
-            _id: doc.id,    
+            _id: doc.id, // This is essential for the payment/delete functions to work later  
         } as Order));
 
     } catch (error) { 
-        console.error("Error fetching orders: ", error);
+        console.error("CRITICAL ERROR FETCHING ORDERS (DB Path Failure): ", error);
         return [];
     }
 };
