@@ -160,7 +160,7 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
 
 // ORDER & PAYMENT FUNCTIONS
 
-eexport const getOrders = async (): Promise<Order[]> => {
+export const getOrders = async (): Promise<Order[]> => {
     try {
         const snapshot = await getDocs(collection(db, 'orders'));
         // Reverting the mapping to its original, safe state:
