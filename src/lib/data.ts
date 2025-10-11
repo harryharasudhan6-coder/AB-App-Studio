@@ -161,18 +161,17 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
 // ORDER & PAYMENT FUNCTIONS
 export const getOrders = async (): Promise<Order[]> => {
     try {
-        // FINAL CRITICAL FIX: The collection name must be 'order' (singular), as seen in the Firebase console.
+        // FINAL CRITICAL FIX: The collection name is 'order' (singular). 
+        // We are removing the 'orderBy' clause which was causing a silent failure due to a missing Firebase Index.
         const ordersCollectionRef = collection(db, 'order'); 
         
-        // IMPORTANT: We must also order by a field like 'createdAt' or 'orderNumber'
-        // to match how getCustomers is ordered, preventing potential Firestore errors.
-        // We ensure 'orderBy' is imported for this line to function correctly.
-        const q = query(ordersCollectionRef, orderBy('createdAt', 'desc')); 
+        // **FIX**: Query is simplified to ensure data retrieval regardless of indexing issues.
+        const q = query(ordersCollectionRef); 
         
-        let snapshot = await getDocs(q); // Use the query 'q'
+        let snapshot = await getDocs(q);
         
         if (snapshot.docs.length === 0) {
-             console.log("No documents found in the confirmed 'order' path. Fetch failed. Data might be under a user-specific path.");
+             console.log("No documents found after simplified query. Check Firebase Security Rules.");
         }
         
         // This mapping correctly extracts the data and the document ID (for payment recording)
@@ -182,7 +181,7 @@ export const getOrders = async (): Promise<Order[]> => {
         } as Order));
 
     } catch (error) { 
-        console.error("CRITICAL ERROR FETCHING ORDERS (DB Path Failure): ", error);
+        console.error("CRITICAL ERROR FETCHING ORDERS (Indexing Failure): ", error);
         return [];
     }
 };
