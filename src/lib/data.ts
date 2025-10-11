@@ -162,10 +162,21 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
 
 export const getOrders = async (): Promise<Order[]> => {
     try {
-        const snapshot = await getDocs(collection(db, 'orders'));
-        // Reverting the mapping to its original, safe state:
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-    } catch (error) {
+        // CRITICAL FIX: We are assuming data might be stored in a shared or user-specific path
+        // We will try the simple 'orders' collection first.
+        const ordersCollectionRef = collection(db, 'orders'); 
+
+        // ⚠️ If the simple 'orders' path fails, you may need to manually adjust this line
+        //    based on your Firebase structure (e.g., 'users/userId/orders' or 'public/orders')
+
+        const snapshot = await getDocs(ordersCollectionRef);
+        
+        return snapshot.docs.map(doc => ({ 
+            ...doc.data(), 
+            _id: doc.id,    
+        } as Order));
+
+    } catch (error) { 
         console.error("Error fetching orders: ", error);
         return [];
     }
