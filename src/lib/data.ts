@@ -161,17 +161,23 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
 // ORDER & PAYMENT FUNCTIONS
 export const getOrders = async (): Promise<Order[]> => {
     try {
-        // FINAL CRITICAL FIX: The collection name is 'order' (singular). 
-        // We are removing the 'orderBy' clause which was causing a silent failure due to a missing Firebase Index.
+        // *** CRITICAL CHECK: Ensure DB is defined before proceeding ***
+        if (!db) {
+            console.error("CRITICAL ERROR: Firestore 'db' instance is undefined. Firebase initialization failed.");
+            return [];
+        }
+
+        // The collection name is 'order' (singular), as confirmed. 
+        // Query is simplified to ensure data retrieval regardless of indexing issues.
         const ordersCollectionRef = collection(db, 'order'); 
         
-        // **FIX**: Query is simplified to ensure data retrieval regardless of indexing issues.
         const q = query(ordersCollectionRef); 
         
         let snapshot = await getDocs(q);
         
         if (snapshot.docs.length === 0) {
-             console.log("No documents found after simplified query. Check Firebase Security Rules.");
+             // This console message indicates the query ran but found no documents.
+             console.log("No documents found in the 'order' collection.");
         }
         
         // This mapping correctly extracts the data and the document ID (for payment recording)
@@ -181,7 +187,7 @@ export const getOrders = async (): Promise<Order[]> => {
         } as Order));
 
     } catch (error) { 
-        console.error("CRITICAL ERROR FETCHING ORDERS (Indexing Failure): ", error);
+        console.error("CRITICAL ERROR FETCHING ORDERS (Final Check Failure): ", error);
         return [];
     }
 };
