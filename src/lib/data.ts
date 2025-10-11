@@ -166,12 +166,13 @@ export const getOrders = async (): Promise<Order[]> => {
         
         // IMPORTANT: We must also order by a field like 'createdAt' or 'orderNumber'
         // to match how getCustomers is ordered, preventing potential Firestore errors.
+        // We ensure 'orderBy' is imported for this line to function correctly.
         const q = query(ordersCollectionRef, orderBy('createdAt', 'desc')); 
         
         let snapshot = await getDocs(q); // Use the query 'q'
         
         if (snapshot.docs.length === 0) {
-             console.log("No documents found in the confirmed 'order' path. Fetch failed.");
+             console.log("No documents found in the confirmed 'order' path. Fetch failed. Data might be under a user-specific path.");
         }
         
         // This mapping correctly extracts the data and the document ID (for payment recording)
