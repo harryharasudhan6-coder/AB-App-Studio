@@ -169,7 +169,7 @@ export const getOrders = async (): Promise<Order[]> => {
 
         // The collection name is 'order' (singular), as confirmed. 
         // Query is simplified to ensure data retrieval regardless of indexing issues.
-        const ordersCollectionRef = collection(db, 'order'); 
+        const ordersCollectionRef = collection(db, 'orders'); 
         
         const q = query(ordersCollectionRef); 
         
@@ -191,6 +191,25 @@ export const getOrders = async (): Promise<Order[]> => {
         return [];
     }
 };
+
+const useInvoiceData = () => {
+  const [allInvoices, setAllInvoices] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refreshOrders = async () => {
+    setLoading(true);
+    const invoices = await getInvoices();
+    setAllInvoices(invoices);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refreshOrders();
+  }, []);
+
+  return { allInvoices, refreshOrders, loading };
+};
+
 
 export const getOrdersByCustomerId = async (customerId: string): Promise<Order[]> => {
     if (!customerId) return [];
