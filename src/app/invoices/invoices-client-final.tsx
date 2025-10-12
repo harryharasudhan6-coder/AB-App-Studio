@@ -45,30 +45,33 @@ const ReceiptTemplate = ({ receiptRef, order, payment, historicalPayments, custo
     </div>
 );
 
-// Placeholder Data (replace with your actual data fetching logic)
-const useInvoiceData = () => {
-    // ⚠️ IMPORTANT: In your actual data fetching (e.g., in use-orders.ts), 
-    // you must ensure the document ID is mapped to the '_id' property.
-    const mockOrders: Order[] = [
-        { _id: 'WmTjBVo3yuzz7CKFwZCG', id: 'INV-0047', customerId: 'C-1', customerName: 'Client Alpha', orderDate: '2024-10-01', status: 'Partially Paid', items: [], total: 1000, discount: 0, deliveryFees: 0, previousBalance: 0, grandTotal: 1000, paymentTerm: 'Net 30', isGstInvoice: true, isOpeningBalance: false, payments: [{ id: 'P-1', amount: 500, mode: 'Cash', date: '2024-10-01', recordedBy: 'User' }], balanceDue: 500 },
-        { _id: 'A35BsYf6eDQdO76f0bdv', id: 'INV-0048', customerId: 'C-2', customerName: 'Client Beta', orderDate: '2024-10-02', status: 'Unpaid', items: [], total: 2000, discount: 0, deliveryFees: 0, previousBalance: 0, grandTotal: 2000, paymentTerm: 'Due Upon Receipt', isGstInvoice: true, isOpeningBalance: false, payments: [], balanceDue: 2000 },
-    ];
-    const mockCustomers: Customer[] = [{ id: 'C-1', name: 'Client Alpha' }, { id: 'C-2', name: 'Client Beta' }];
-    
-    // Simulate refreshing data
-    const [allInvoices, setAllInvoices] = useState<Order[]>(mockOrders);
-    const refreshOrders = async () => {
-        // In a real app, this would fetch the new state of orders from the server
-        console.log("Simulating order refresh...");
-        // Re-calculate balance due after a payment/delete operation
-        const updatedOrders = allInvoices.map(order => {
-             const totalPaid = order.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-             return { ...order, balanceDue: order.grandTotal - totalPaid, status: totalPaid === 0 ? 'Unpaid' : totalPaid >= order.grandTotal ? 'Paid' : 'Partially Paid' };
-        });
-        setAllInvoices(updatedOrders);
-    };
+import { getInvoices } from "@/lib/data"; // make sure this import exists at the top
 
-    return { allInvoices, customers: mockCustomers, refreshOrders };
+const useInvoiceData = () => {
+  const [allInvoices, setAllInvoices] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch invoices from Firestore
+  const refreshOrders = async () => {
+    try {
+      setLoading(true);
+      const invoices = await getInvoices(); // ✅ uses Firestore now
+      setAllInvoices(invoices);
+      console.log(`Fetched ${invoices.length} invoices from Firestore`);
+    } catch (error) {
+      console.error("Failed to fetch invoices:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Run once on mount
+  useEffect(() => {
+    refreshOrders();
+  }, []);
+
+  return { allInvoices, customers, refreshOrders, loading };
 };
 
 
