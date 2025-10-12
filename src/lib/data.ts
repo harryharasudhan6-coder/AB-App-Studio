@@ -223,6 +223,32 @@ export const getOrdersByCustomerId = async (customerId: string): Promise<Order[]
     }
 };
 
+// ✅ Add this new function just below getOrdersByCustomerId
+export const getInvoices = async (): Promise<Order[]> => {
+  try {
+    if (!db) {
+      console.error("Firestore 'db' instance is undefined.");
+      return [];
+    }
+
+    // Firestore only has 'orders', so we use that collection
+    const invoicesRef = collection(db, "orders");
+    const snapshot = await getDocs(invoicesRef);
+
+    if (snapshot.empty) {
+      console.log("No documents found in the 'orders' collection (used for invoices).");
+    }
+
+    return snapshot.docs.map(doc => ({
+      _id: doc.id,
+      ...doc.data(),
+    } as Order));
+  } catch (error) {
+    console.error("Error fetching invoices:", error);
+    return [];
+  }
+};
+
 
 async function getNextId(transaction: Transaction, counterName: string, prefix: string): Promise<string> {
     const counterRef = doc(db, "counters", counterName);
