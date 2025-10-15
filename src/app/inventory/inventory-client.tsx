@@ -189,7 +189,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
 };
 // --- END AddProductDialog Component
 
-// --- EditProductDialog Component (Crucially, this component is now fully controlled and correctly uses the updateProduct function)
+// --- EditProductDialog Component (Fully updated with fixed updateProduct call and safeguards)
 interface EditProductDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
@@ -245,13 +245,39 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
 
         setLoading(true);
         try {
+            // Helper: Safely trim strings; default to '' if invalid
+            const safeTrim = (value: any): string => {
+                if (typeof value === 'string' && value !== null && value !== undefined) {
+                    return value.trim();
+                }
+                return '';
+            };
+
+            // Prepare clean updates (exclude id, timestamps; apply safeguards)
+            const updates: Partial<Product> = {
+                name: safeTrim(editData.name),
+                sku: safeTrim(editData.sku),
+                category: safeTrim(editData.category as string),
+                calculationType: editData.calculationType || 'Per Pc',
+                stock: editData.stock ?? 0,
+                price: editData.price ?? 0,
+                reorderPoint: editData.reorderPoint ?? null,
+                // No brand (removed); timestamps handled by function or DB trigger
+            };
+
+            // Full updatedProduct for local state/UI update (include id and timestamps)
             const updatedProduct: Product = {
                 ...productToEdit,
-                ...editData, // Merge the changed data
+                ...updates,
                 updatedAt: new Date().toISOString(),
-            } as Product; // Cast for safety
+            } as Product;
 
-            await updateProduct(updatedProduct);
+            // Log for debugging (remove after confirming fix works)
+            console.log('Updating product:', { id: updatedProduct.id, updates });
+
+            // Correct call: Pass id and updates separately (matches data.ts function)
+            await updateProduct(updatedProduct.id, updates);
+
             handleEditSubmit(updatedProduct); // Update local state in parent
             onOpenChange(false); // Close dialog
 
@@ -333,7 +359,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
                                 <SelectContent>
                                     <SelectItem value="Per Pc">Per Pc</SelectItem>
                                     <SelectItem value="Per Kg">Per Kg</SelectItem>
-									<SelectItem value="Per Load">Per Load</SelectItem>
+                                    <SelectItem value="Per Load">Per Load</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
