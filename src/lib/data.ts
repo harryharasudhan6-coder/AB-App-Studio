@@ -1,4 +1,3 @@
-
 import { db } from './firebase';
 import { collection, getDocs, addDoc, doc, setDoc, deleteDoc, writeBatch, getDoc, query, limit, runTransaction, DocumentReference, updateDoc, increment, where, orderBy, Transaction } from 'firebase/firestore';
 import type { Customer, Product, Order, Payment, OrderItem, PaymentAlert, LowStockAlert, Supplier, Purchase, PurchasePayment, OrderStatus, PaymentMode, CalculationType, PurchasePaymentTerm } from './types';
@@ -111,7 +110,6 @@ export const deleteCustomer = async (id: string) => {
 
 
 // PRODUCT FUNCTIONS
-// PRODUCT FUNCTIONS
 export const getProducts = async (): Promise<Product[]> => {
     try {
         const snapshot = await getDocs(collection(db, 'products'));
@@ -121,6 +119,21 @@ export const getProducts = async (): Promise<Product[]> => {
         return [];
     }
 };
+
+// VITAL FIX: ADDED MISSING addProduct FUNCTION
+export const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
+    console.log("🔄 addProduct called with data:", productData);
+    try {
+        const docRef = await addDoc(collection(db, 'products'), productData);
+        const newProduct: Product = { id: docRef.id, ...productData };
+        console.log("✅ Product added successfully with ID:", docRef.id);
+        return newProduct;
+    } catch (error) {
+        console.error("🔥 addProduct ERROR:", error);
+        throw error;
+    }
+};
+// END OF VITAL FIX
 
 export const updateProduct = async (productId: string, updates: Partial<Product>): Promise<void> => {
     try {
