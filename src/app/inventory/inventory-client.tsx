@@ -36,7 +36,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
     const [sku, setSku] = useState('');
     const [stock, setStock] = useState(0);
     const [price, setPrice] = useState(0);
-    const [brand, setBrand] = useState('');
     const [category, setCategory] = useState<ProductCategory | ''>('');
     const [calculationType, setCalculationType] = useState<CalculationType>('Per Pc');
     const [reorderPoint, setReorderPoint] = useState<number | undefined>(undefined);
@@ -60,7 +59,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
                 sku,
                 stock,
                 price,
-                brand,
                 category: category as ProductCategory,
                 calculationType,
                 reorderPoint,
@@ -81,7 +79,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
             setSku('');
             setStock(0);
             setPrice(0);
-            setBrand('');
             setCategory('');
             setCalculationType('Per Pc');
             setReorderPoint(undefined);
@@ -118,10 +115,6 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
                             <Input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} className="col-span-3" required />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="brand" className="text-right">Brand</Label>
-                            <Input id="brand" value={brand} onChange={(e) => setBrand(e.target.value)} className="col-span-3" />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="category" className="text-right">Category*</Label>
                             <Select onValueChange={(value: ProductCategory) => setCategory(value)} value={category} required>
                                 <SelectTrigger className="col-span-3">
@@ -142,6 +135,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
                                 <SelectContent>
                                     <SelectItem value="Per Pc">Per Pc</SelectItem>
                                     <SelectItem value="Per Kg">Per Kg</SelectItem>
+									<SelectItem value="Per Load">Per Load</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -219,7 +213,6 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
                 sku: productToEdit.sku,
                 stock: productToEdit.stock,
                 price: productToEdit.price,
-                brand: productToEdit.brand,
                 category: productToEdit.category,
                 calculationType: productToEdit.calculationType,
                 reorderPoint: productToEdit.reorderPoint,
@@ -313,15 +306,6 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-brand" className="text-right">Brand</Label>
-                            <Input 
-                                id="edit-brand" 
-                                value={editData.brand || ''} 
-                                onChange={(e) => handleChange('brand', e.target.value)} 
-                                className="col-span-3" 
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="edit-category" className="text-right">Category*</Label>
                             <Select 
                                 onValueChange={(value: ProductCategory) => handleChange('category', value)} 
@@ -349,6 +333,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
                                 <SelectContent>
                                     <SelectItem value="Per Pc">Per Pc</SelectItem>
                                     <SelectItem value="Per Kg">Per Kg</SelectItem>
+									<SelectItem value="Per Load">Per Load</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
