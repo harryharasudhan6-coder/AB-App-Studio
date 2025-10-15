@@ -473,33 +473,50 @@ export const deleteOrder = async (orderToDelete: Order): Promise<void> => {
     });
 };
 
-export const addPaymentToOrder = async (orderId: string, payment: Omit<Payment, 'id'>): Promise<void> => {
+export const addPaymentToOrder = async (
+  orderId: string,
+  payment: Omit<Payment, 'id'>
+): Promise<Payment> => {
+  try {
     let customerId = '';
-    
+
     const orderSnap = await getDoc(doc(db, 'orders', orderId));
     if (orderSnap.exists()) {
-        customerId = orderSnap.data().customerId;
+      customerId = orderSnap.data().customerId;
     } else {
-        throw new Error(`Order ${orderId} not found.`);
+      throw new Error(`Order ${orderId} not found.`);
     }
 
     if (!customerId) {
-        throw new Error(`Could not find a customer for order ${orderId}.`);
+      throw new Error(`Could not find a customer for order ${orderId}.`);
     }
 
+    let newPayment: Payment | null = null;
+
     await runBalanceChainUpdate(customerId, (orders) => {
-        const orderToPay = orders.find(o => o.id === orderId);
+      const orderToPay = orders.find((o) => o.id === orderId);
 
-        if (!orderToPay) throw new Error("Could not find order to apply payment to during transaction.");
+      if (!orderToPay)
+        throw new Error(
+          'Could not find order to apply payment to during transaction.'
+        );
 
-        const existingPayments: Payment[] = orderToPay.payments || [];
-        const paymentId = `${orderId}-PAY-${String(existingPayments.length + 1).padStart(2, '0')}`;
-        const newPayment: Payment = { ...payment, id: paymentId };
+      const existingPayments: Payment[] = orderToPay.payments || [];
+      const paymentId = `${orderId}-PAY-${String(
+        existingPayments.length + 1
+      ).padStart(2, '0')}`;
+      newPayment = { ...payment, id: paymentId };
 
-        orderToPay.payments = [...existingPayments, newPayment];
-        
-        return orders;
+      orderToPay.payments = [...existingPayments, newPayment];
+
+      return orders;
     });
+
+    return newPayment!;
+  } catch (error) {
+    console.error('Error adding payment:', error);
+    throw error;
+  }
 };
 
 interface BulkPaymentData {
@@ -870,34 +887,34 @@ export const resetAllPayments = async () => {
 };
 // New function to add to data.ts
 
-export const deletePaymentFromOrder = async (customerId: string, orderId: string, paymentId: string) => {
-    console.log(`Attempting to delete payment ${paymentId} from order ${orderId} for customer ${customerId}`);
+export const deletePaymentFromOrder = async (
+  customerId: string,
+  orderId: string,
+  paymentId: string
+) => {
+  console.log(`Attempting to delete payment ${paymentId} from order ${orderId} for customer ${customerId}`);
 
-    // This function defines how to update the orders array within the transaction.
-    const updateChain = (orders: Order[]) => {
-        return orders.map(order => {
-            if (order.id === orderId) {
-                // Filter out the specific payment to be deleted
-                const updatedPayments = order.payments.filter(p => p.id !== paymentId);
+  const updateChain = (orders: Order[]) => {
+    return orders.map(order => {
+      if (order.id === orderId) {
+        const updatedPayments = order.payments.filter(p => p.id !== paymentId);
+        return {
+          ...order,
+          payments: updatedPayments,
+        } as Order;
+      }
+      return order;
+    });
+  };
 
-                // Return the updated order object
-                return {
-                    ...order,
-                    payments: updatedPayments,
-                } as Order; // Ensure type casting is correct
-            }
-            return order; // Return other orders unchanged
-        });
-    };
-
-    try {
-        // Assume runBalanceChainUpdate executes the updateChain function
-        // and handles the necessary Firestore transaction and balance recalculation.
-        await runBalanceChainUpdate(customerId, updateChain);
-        console.log(`Successfully deleted payment ${paymentId} from order ${orderId}.`);
-        return { success: true };
-    } catch (error) {
-        console.error("Error deleting payment from order:", error);
-        throw new Error("Failed to delete payment from order.");
-    }
+  try {
+    const updatedOrders = await runBalanceChainUpdate(customerId, updateChain);
+    console.log(`Successfully deleted payment ${paymentId} from order ${orderId}.`);
+    // Optionally return the updated order for UI refresh
+    const updatedOrder = updatedOrders.find(o => o.id === orderId);
+    return { success: true, updatedOrder };
+  } catch (error) {
+    console.error("Error deleting payment from order:", error);
+    throw new Error("Failed to delete payment from order.");
+  }
 };

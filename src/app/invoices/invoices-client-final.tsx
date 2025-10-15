@@ -18,6 +18,9 @@ import { Loader2, Receipt, Trash2, Share2, ArrowUpDown, MoreHorizontal, Edit } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
+import { getInvoices, addPaymentToOrder, deletePaymentFromOrder } from '@/lib/data';
+import jsPDF from 'jspdf';
+
 // Placeholder utility functions (replace with your actual data and logic imports)
 // NOTE: These are assumed to be imported from your backend data layer (e.g., src/lib/data.ts)
 const addPaymentToOrder = (customerId: string, orderId: string, paymentData: Omit<Payment, 'id'>) => {
