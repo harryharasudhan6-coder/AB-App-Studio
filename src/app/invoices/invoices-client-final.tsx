@@ -48,8 +48,6 @@ const ReceiptTemplate = ({ receiptRef, order, payment, historicalPayments, custo
     </div>
 );
 
-import { getInvoices } from "@/lib/data"; // make sure this import exists at the top
-
 const useInvoiceData = () => {
   const [allInvoices, setAllInvoices] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
