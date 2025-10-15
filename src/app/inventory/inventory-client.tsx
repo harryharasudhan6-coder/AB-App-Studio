@@ -610,7 +610,7 @@ export function InventoryClient({ products: initialProducts }: { products: Produ
                                                                 {/* ********************************************** */}
                                                                 {/* ******* FIX 2: ALERT DIALOG TRIGGER WRAPPER ******* */}
                                                                 {/* ********************************************** */}
-                                                                <AlertDialogTrigger asChild>
+                                                                
                                                                     <DropdownMenuItem
                                                                         // The onClick here sets the product, the trigger opens the dialog
                                                                         onClick={() => setProductToDelete(product)}
@@ -618,8 +618,7 @@ export function InventoryClient({ products: initialProducts }: { products: Produ
                                                                     >
                                                                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                                     </DropdownMenuItem>
-                                                                </AlertDialogTrigger>
-                                                            </DropdownMenuContent>
+                                                                    </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </TableCell>
                                                 </TableRow>
