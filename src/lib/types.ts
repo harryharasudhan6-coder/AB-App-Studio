@@ -1,6 +1,17 @@
+// src/lib/types.ts (Your Code + Optimizations: Timestamps, Required Fields, Minor Enhancements)
+import { Timestamp } from 'firebase/firestore';  // For server timestamps (add to data.ts imports)
 
+// Enums (Unchanged)
 export type CalculationType = 'Per Unit' | 'Per Kg';
 
+export type ProductCategory = 'General' | 'Red Bricks' | 'Rods & Rings';
+
+export type OrderStatus = 'Pending' | 'Part Payment' | 'Fulfilled' | 'Canceled';
+export type PaymentTerm = 'Full Payment' | 'Credit';
+export type PurchasePaymentTerm = 'Paid' | 'Credit';
+export type PaymentMode = 'Cash' | 'Card' | 'UPI' | 'Cheque' | 'Online Transfer';
+
+// Customer (Unchanged + orders? for relation)
 export interface Customer {
   id: string;
   name: string;
@@ -15,6 +26,7 @@ export interface Customer {
   orders?: Order[];
 }
 
+// Supplier (Unchanged)
 export interface Supplier {
   id: string;
   name: string;
@@ -24,29 +36,26 @@ export interface Supplier {
   gstin?: string;
 }
 
-export type ProductCategory = 'General' | 'Red Bricks' | 'Rods & Rings';
-
+// Product (Your Code + Timestamps; Made category/calculationType Required; cost Required)
 export interface Product {
   id: string;
   name: string;
   sku: string;
   stock: number;
   price: number;
-  cost: number; // Cost of Goods Sold
-  gst: number;
+  cost: number; // Cost of Goods Sold (required, default 0 in dialogs if needed)
+  gst: number;  // GST % (0-100)
   reorderPoint?: number;
-  calculationType?: CalculationType;
-  category?: ProductCategory;
+  calculationType: CalculationType;  // Made required for pricing logic
+  category: ProductCategory;  // Made required for conditional fields (e.g., weightPerUnit)
   brand?: string;
   weightPerUnit?: number; // Weight in KG, for Rods & Rings
   historicalData?: { date: string; quantity: number }[];
+  createdAt?: string | Timestamp;  // Added for audit (client ISO or server timestamp)
+  updatedAt?: string | Timestamp;  // Added for audit
 }
 
-export type OrderStatus = 'Pending' | 'Part Payment' | 'Fulfilled' | 'Canceled';
-export type PaymentTerm = 'Full Payment' | 'Credit';
-export type PurchasePaymentTerm = 'Paid' | 'Credit';
-export type PaymentMode = 'Cash' | 'Card' | 'UPI' | 'Cheque' | 'Online Transfer';
-
+// Payment (Unchanged)
 export interface Payment {
   id: string;
   paymentDate: string;
@@ -56,19 +65,23 @@ export interface Payment {
   notes?: string;
 }
 
+// OrderItem (Your Code + id?: string; weightPerUnit? for direct Product link)
 export interface OrderItem {
+  id?: string;  // Added: Optional for new items (Firestore auto-ID)
   productId: string;
   productName: string;
   quantity: number;
   price: number;
   cost: number; // Snapshot of cost at time of sale
-  gst: number;
+  gst: number;  // GST % snapshot
   calculationType?: CalculationType;
   category?: ProductCategory;
   brand?: string; // Brand for items like bricks
-  totalWeight?: number; // For Rods & Rings
+  totalWeight?: number; // For Rods & Rings (computed: weightPerUnit * quantity)
+  weightPerUnit?: number;  // Added: Snapshot from Product.weightPerUnit (for kg calcs)
 }
 
+// PurchaseItem (Unchanged)
 export interface PurchaseItem {
   productId: string;
   productName: string;
@@ -77,6 +90,7 @@ export interface PurchaseItem {
   gst: number;
 }
 
+// PurchasePayment (Unchanged, but fixed indent)
 export interface PurchasePayment {
     id: string;
     paymentDate: string;
@@ -85,6 +99,7 @@ export interface PurchasePayment {
     notes?: string;
 }
 
+// Purchase (Unchanged + Optional Timestamps)
 export interface Purchase {
     id: string;
     supplierId: string;
@@ -97,12 +112,14 @@ export interface Purchase {
     balanceDue: number;
     paymentTerm: PurchasePaymentTerm;
     dueDate?: string;
+    createdAt?: string | Timestamp;  // Added (optional)
+    updatedAt?: string | Timestamp;  // Added (optional)
 }
 
-
+// Order (Unchanged + Optional Timestamps)
 export interface Order {
   _id?: string;
-  id:string;
+  id: string;
   customerId: string;
   customerName: string;
   orderDate: string;
@@ -123,8 +140,11 @@ export interface Order {
   isOpeningBalance: boolean;
   payments?: Payment[];
   balanceDue?: number;
+  createdAt?: string | Timestamp;  // Added (optional)
+  updatedAt?: string | Timestamp;  // Added (optional)
 }
 
+// Alerts (Unchanged)
 export interface PaymentAlert {
   orderId: string;
   customerName: string;

@@ -1,686 +1,534 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { Product, CalculationType, ProductCategory } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { PlusCircle, MoreHorizontal, AlertTriangle, Database, Edit, Trash2, ArrowUpDown, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import React, { useEffect, useState } from 'react';
+import type { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { addProduct, deleteProduct as deleteProductFromDB, getProducts, updateProduct } from '@/lib/data';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
-// Helper for formatting numbers (assumed to exist)
-const formatNumber = (num: number | undefined) => num !== undefined ? num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
 
-// --- AddProductDialog Component (Assumed to be in the original file, slightly modified for flow)
-interface AddProductDialogProps {
-    isOpen: boolean;
-    onOpenChange: (open: boolean) => void;
-    onProductAdded: (product: Product) => void;
-}
-
-const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChange, onProductAdded }) => {
-    const { toast } = useToast();
-    const [name, setName] = useState('');
-    const [sku, setSku] = useState('');
-    const [stock, setStock] = useState(0);
-    const [price, setPrice] = useState(0);
-    const [category, setCategory] = useState<ProductCategory | ''>('');
-    const [calculationType, setCalculationType] = useState<CalculationType>('Per Pc');
-    const [reorderPoint, setReorderPoint] = useState<number | undefined>(undefined);
-    const [loading, setLoading] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name || !sku || stock < 0 || price < 0 || !category) {
-            toast({
-                title: "Validation Error",
-                description: "Please fill in all required fields (Name, SKU, Stock, Price, Category) correctly.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const newProduct: Omit<Product, 'id'> = {
-                name,
-                sku,
-                stock,
-                price,
-                category: category as ProductCategory,
-                calculationType,
-                reorderPoint,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            };
-
-            const addedProduct = await addProduct(newProduct);
-            onProductAdded(addedProduct);
-            onOpenChange(false);
-            toast({
-                title: "Success",
-                description: `${name} has been added to the inventory.`,
-            });
-            
-            // Reset form
-            setName('');
-            setSku('');
-            setStock(0);
-            setPrice(0);
-            setCategory('');
-            setCalculationType('Per Pc');
-            setReorderPoint(undefined);
-
-        } catch (error) {
-            console.error('Failed to add product:', error);
-            toast({
-                title: "Error",
-                description: "Failed to add product. Please try again.",
-                variant: "destructive",
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Add New Product</DialogTitle>
-                    <DialogDescription>
-                        Fill in the details for the new inventory item.
-                    </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">Name*</Label>
-                            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" required />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="sku" className="text-right">SKU*</Label>
-                            <Input id="sku" value={sku} onChange={(e) => setSku(e.target.value)} className="col-span-3" required />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="category" className="text-right">Category*</Label>
-                            <Select onValueChange={(value: ProductCategory) => setCategory(value)} value={category} required>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select Category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="type" className="text-right">Calc Type</Label>
-                            <Select onValueChange={(value: CalculationType) => setCalculationType(value)} value={calculationType}>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select Type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Per Pc">Per Pc</SelectItem>
-                                    <SelectItem value="Per Kg">Per Kg</SelectItem>
-									<SelectItem value="Per Load">Per Load</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="stock" className="text-right">Stock*</Label>
-                            <Input 
-                                id="stock" 
-                                type="number" 
-                                value={stock} 
-                                onChange={(e) => setStock(parseInt(e.target.value) || 0)} 
-                                className="col-span-3" 
-                                min="0" 
-                                required 
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="price" className="text-right">Price*</Label>
-                            <Input 
-                                id="price" 
-                                type="number" 
-                                value={price} 
-                                onChange={(e) => setPrice(parseFloat(e.target.value) || 0)} 
-                                className="col-span-3" 
-                                step="0.01" 
-                                min="0" 
-                                required 
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="reorderPoint" className="text-right">Reorder Point</Label>
-                            <Input 
-                                id="reorderPoint" 
-                                type="number" 
-                                value={reorderPoint === undefined ? '' : reorderPoint} 
-                                onChange={(e) => setReorderPoint(parseInt(e.target.value) || undefined)} 
-                                className="col-span-3" 
-                                min="0"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" disabled={loading}>
-                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Add Product
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
+type Props = {
+  products?: Product[]; // server-passed initial data
 };
-// --- END AddProductDialog Component
 
-// --- EditProductDialog Component (Fully updated with fixed updateProduct call and safeguards)
-interface EditProductDialogProps {
-    isOpen: boolean;
-    onOpenChange: (open: boolean) => void;
-    productToEdit: Product | null;
-    handleEditSubmit: (updatedProduct: Product) => void;
-}
-
-const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenChange, productToEdit, handleEditSubmit }) => {
-    const { toast } = useToast();
-    const [loading, setLoading] = useState(false);
-    
-    // State to hold the current values of the fields being edited
-    const [editData, setEditData] = useState<Partial<Product>>({});
-
-    // Effect to initialize the form data when a product is selected for edit
-    useEffect(() => {
-        if (productToEdit) {
-            setEditData({
-                id: productToEdit.id,
-                name: productToEdit.name,
-                sku: productToEdit.sku,
-                stock: productToEdit.stock,
-                price: productToEdit.price,
-                category: productToEdit.category,
-                calculationType: productToEdit.calculationType,
-                reorderPoint: productToEdit.reorderPoint,
-            });
-        } else {
-            setEditData({}); // Clear state when dialog closes
-        }
-    }, [productToEdit]);
-
-    const handleChange = (field: keyof Product, value: string | number | ProductCategory | CalculationType | undefined) => {
-        setEditData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!productToEdit) return;
-
-        // Validation: Ensure required fields are not empty/invalid
-        if (!editData.name || !editData.sku || editData.stock === undefined || editData.price === undefined || !editData.category) {
-            toast({
-                title: "Validation Error",
-                description: "Name, SKU, Stock, Price, and Category are required.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        setLoading(true);
-        try {
-            // Helper: Safely trim strings; default to '' if invalid
-            const safeTrim = (value: any): string => {
-                if (typeof value === 'string' && value !== null && value !== undefined) {
-                    return value.trim();
-                }
-                return '';
-            };
-
-            // Prepare clean updates (exclude id, timestamps; apply safeguards)
-            const updates: Partial<Product> = {
-                name: safeTrim(editData.name),
-                sku: safeTrim(editData.sku),
-                category: safeTrim(editData.category as string),
-                calculationType: editData.calculationType || 'Per Pc',
-                stock: editData.stock ?? 0,
-                price: editData.price ?? 0,
-                reorderPoint: editData.reorderPoint ?? null,
-                // No brand (removed); timestamps handled by function or DB trigger
-            };
-
-            // Full updatedProduct for local state/UI update (include id and timestamps)
-            const updatedProduct: Product = {
-                ...productToEdit,
-                ...updates,
-                updatedAt: new Date().toISOString(),
-            } as Product;
-
-            // Log for debugging (remove after confirming fix works)
-            console.log('Updating product:', { id: updatedProduct.id, updates });
-
-            // Correct call: Pass id and updates separately (matches data.ts function)
-            await updateProduct(updatedProduct.id, updates);
-
-            handleEditSubmit(updatedProduct); // Update local state in parent
-            onOpenChange(false); // Close dialog
-
-            toast({
-                title: "Success",
-                description: `${updatedProduct.name} has been updated.`,
-            });
-        } catch (error) {
-            console.error('Failed to update product:', error);
-            toast({
-                title: "Error",
-                description: "Failed to update product. Please try again.",
-                variant: "destructive",
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    // Safety check: Don't render if no product is selected
-    if (!productToEdit) return null;
-
-    return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Edit Product: {productToEdit.name}</DialogTitle>
-                    <DialogDescription>
-                        Make changes to the product details here.
-                    </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit}>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-name" className="text-right">Name*</Label>
-                            <Input 
-                                id="edit-name" 
-                                value={editData.name || ''} 
-                                onChange={(e) => handleChange('name', e.target.value)} 
-                                className="col-span-3" 
-                                required 
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-sku" className="text-right">SKU*</Label>
-                            <Input 
-                                id="edit-sku" 
-                                value={editData.sku || ''} 
-                                onChange={(e) => handleChange('sku', e.target.value)} 
-                                className="col-span-3" 
-                                required 
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-category" className="text-right">Category*</Label>
-                            <Select 
-                                onValueChange={(value: ProductCategory) => handleChange('category', value)} 
-                                value={editData.category as ProductCategory || ''} 
-                                required
-                            >
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select Category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-type" className="text-right">Calc Type</Label>
-                            <Select 
-                                onValueChange={(value: CalculationType) => handleChange('calculationType', value)} 
-                                value={editData.calculationType || 'Per Pc'}
-                            >
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select Type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Per Pc">Per Pc</SelectItem>
-                                    <SelectItem value="Per Kg">Per Kg</SelectItem>
-                                    <SelectItem value="Per Load">Per Load</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-stock" className="text-right">Stock*</Label>
-                            <Input 
-                                id="edit-stock" 
-                                type="number" 
-                                value={editData.stock || 0} 
-                                onChange={(e) => handleChange('stock', parseInt(e.target.value) || 0)} 
-                                className="col-span-3" 
-                                min="0" 
-                                required 
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-price" className="text-right">Price*</Label>
-                            <Input 
-                                id="edit-price" 
-                                type="number" 
-                                value={editData.price || 0} 
-                                onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)} 
-                                className="col-span-3" 
-                                step="0.01" 
-                                min="0" 
-                                required 
-                            />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="edit-reorderPoint" className="text-right">Reorder Point</Label>
-                            <Input 
-                                id="edit-reorderPoint" 
-                                type="number" 
-                                value={editData.reorderPoint === undefined ? '' : editData.reorderPoint} 
-                                onChange={(e) => handleChange('reorderPoint', parseInt(e.target.value) || undefined)} 
-                                className="col-span-3" 
-                                min="0"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" disabled={loading}>
-                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save changes
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
+type ProductForm = {
+  id?: string;
+  name: string;
+  sku: string;
+  category: string;
+  calculationType: string;
+  weightPerUnit: number;
+  stock: number;
+  salePrice: number;
+  cost: number;
+  gst: number;
 };
-// --- END EditProductDialog Component
 
+const emptyForm = (): ProductForm => ({
+  name: '',
+  sku: '',
+  category: 'Rods & Rings',
+  calculationType: 'Per Kg',
+  weightPerUnit: 0,
+  stock: 0,
+  salePrice: 0,
+  cost: 0,
+  gst: 0,
+});
 
-// --- INVENTORY CLIENT COMPONENT ---
-export function InventoryClient({ products: initialProducts }: { products: Product[] }) {
-    const [products, setProducts] = useState<Product[]>(initialProducts);
-    const [loading, setLoading] = useState(true);
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [productToEdit, setProductToEdit] = useState<Product | null>(null);
-    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterCategory, setFilterCategory] = useState<ProductCategory | 'all'>('all');
-    const [firebaseStatus, setFirebaseStatus] = useState({ connected: true, message: "" });
-    const { toast } = useToast();
+const getId = (p: any) => p?.id ?? p?._id ?? undefined;
 
-    // Side effect to load data
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const fetchedProducts = await getProducts();
-                setProducts(fetchedProducts);
-                setFirebaseStatus({ connected: true, message: "" });
-            } catch (error) {
-                console.error("Failed to fetch products:", error);
-                setFirebaseStatus({ connected: false, message: "Failed to connect to the database. Displaying cached data." });
-                toast({
-                    title: "Connection Error",
-                    description: "Failed to load real-time data. Check console for details.",
-                    variant: "destructive",
-                });
-            } finally {
-                setLoading(false);
-            }
-        };
+export default function InventoryClient({ products: initialProducts = [] }: Props) {
+  const { toast } = useToast();
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [loading, setLoading] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [form, setForm] = useState<ProductForm>(emptyForm());
 
-        fetchProducts();
-    }, [toast]);
+  // Keep local state in sync when server props change
+  useEffect(() => {
+    setProducts(initialProducts ?? []);
+  }, [initialProducts]);
 
-    // Handlers
-    const handleProductAdded = useCallback((newProduct: Product) => {
-        setProducts(prev => [newProduct, ...prev]);
-    }, []);
+  const toNumber = (v: string | number) => (typeof v === 'number' ? v : v === '' ? 0 : Number(v));
 
-    const handleEditProduct = useCallback((updatedProduct: Product) => {
-        setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-        setProductToEdit(null); // Clear the edit state
-    }, []);
+  const setField = <K extends keyof ProductForm>(k: K, v: ProductForm[K]) =>
+    setForm((prev) => ({ ...prev, [k]: v }));
 
-    const handleDeleteProduct = async () => {
-        if (!productToDelete || !productToDelete.id) return;
+  const openAdd = () => {
+    setForm(emptyForm());
+    setIsAddOpen(true);
+  };
 
-        try {
-            await deleteProductFromDB(productToDelete.id);
-            setProducts(prev => prev.filter(p => p.id !== productToDelete.id));
-            toast({
-                title: "Success",
-                description: `${productToDelete.name} has been deleted.`,
-            });
-            setProductToDelete(null); // Clear the delete state
-        } catch (error) {
-            console.error('Failed to delete product:', error);
-            toast({
-                title: "Error",
-                description: "Failed to delete product. Please try again.",
-                variant: "destructive",
-            });
-        }
-    };
+  const openEdit = (p: Product) => {
+    setForm({
+      id: getId(p),
+      name: p.name ?? '',
+      sku: (p as any).sku ?? '',
+      category: (p as any).category ?? 'Rods & Rings',
+      calculationType: (p as any).calculationType ?? 'Per Kg',
+      weightPerUnit: (p as any).weightPerUnit ?? 0,
+      stock: (p as any).stock ?? 0,
+      salePrice: (p as any).salePrice ?? 0,
+      cost: (p as any).cost ?? 0,
+      gst: (p as any).gst ?? 0,
+    });
+    setIsEditOpen(true);
+  };
 
-    // Filtering and Sorting
-    const filteredProducts = useMemo(() => {
-        let filtered = products;
+  // Create product (POST /api/products)
+  const handleAddSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setLoading(true);
 
-        if (filterCategory !== 'all') {
-            filtered = filtered.filter(p => p.category === filterCategory);
-        }
+    try {
+      const payload = {
+        name: form.name,
+        sku: form.sku,
+        category: form.category,
+        calculationType: form.calculationType,
+        weightPerUnit: Number(form.weightPerUnit),
+        stock: Number(form.stock),
+        salePrice: Number(form.salePrice),
+        cost: Number(form.cost),
+        gst: Number(form.gst),
+      };
 
-        if (searchTerm) {
-            const lowerSearch = searchTerm.toLowerCase();
-            filtered = filtered.filter(p => 
-                p.name.toLowerCase().includes(lowerSearch) ||
-                p.sku.toLowerCase().includes(lowerSearch) ||
-                p.brand?.toLowerCase().includes(lowerSearch)
-            );
-        }
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-        // Simple default sort by creation date (newest first)
-        return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [products, filterCategory, searchTerm]);
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(txt || 'Failed to create product');
+      }
 
-    return (
-        // **********************************************
-        // ********* FIX 1: TOP-LEVEL FRAGMENT **********
-        // **********************************************
-        <>
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <CardTitle className="text-2xl flex items-center gap-2">
-                                    <Database className="h-6 w-6 text-primary" /> Inventory Overview
-                                </CardTitle>
-                                <CardDescription>
-                                    Manage your stock, prices, and product details. Total products: {products.length}
-                                </CardDescription>
-                            </div>
-                            <Button onClick={() => setIsAddDialogOpen(true)} className="flex items-center gap-2" disabled={!firebaseStatus.connected}>
-                                <PlusCircle className="h-5 w-5" /> Add New Product
-                            </Button>
-                        </div>
-                        
-                        {!firebaseStatus.connected && (
-                            <Alert variant="destructive">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>Database Disconnected</AlertTitle>
-                                <AlertDescription>{firebaseStatus.message}</AlertDescription>
-                            </Alert>
-                        )}
-                        
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col md:flex-row gap-4 mb-4">
-                            <Input
-                                placeholder="Search by name, SKU, or brand..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="max-w-sm"
-                            />
-                            <Select onValueChange={(value) => setFilterCategory(value as ProductCategory | 'all')} value={filterCategory}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Filter by Category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Categories</SelectItem>
-                                    <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+      const created: Product = await res.json();
+      setProducts((prev) => [created, ...prev]);
+      setIsAddOpen(false);
 
-                        {/* Desktop Table View */}
-                        <div className="hidden md:block">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[200px]">Product Name</TableHead>
-                                        <TableHead>SKU</TableHead>
-                                        <TableHead>Category</TableHead>
-                                        <TableHead>Stock</TableHead>
-                                        <TableHead className="text-right">Price</TableHead>
-                                        <TableHead className="w-[50px] text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {loading ? (
-                                        [...Array(5)].map((_, i) => (
-                                            <TableRow key={i}>
-                                                <TableCell colSpan={6}><Skeleton className="h-4 w-full" /></TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        filteredProducts.map((product) => {
-                                            const isLowStock = product.reorderPoint !== undefined && product.stock <= product.reorderPoint;
-                                            return (
-                                                <TableRow key={product.id} className="transition-transform hover:-translate-y-px hover:shadow-md">
-                                                    <TableCell className="font-medium">{product.name} {product.brand && <span className="text-muted-foreground text-xs">({product.brand})</span>}</TableCell>
-                                                    <TableCell>{product.sku}</TableCell>
-                                                    <TableCell><Badge variant="secondary">{product.category || 'General'}</Badge></TableCell>
-                                                    <TableCell className={cn(isLowStock && "text-destructive font-bold")}>
-                                                        <div className="flex items-center gap-2">
-                                                            {isLowStock && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                                                            {product.stock}
-                                                            {product.calculationType === 'Per Pc' && ' nos'}
-                                                            {product.calculationType === 'Per Kg' && ' kg'}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {formatNumber(product.price)}
-                                                        {product.calculationType === 'Per Kg' && <span className="text-muted-foreground text-xs">/kg</span>}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                {/* ********************************************** */}
-                                                                {/* ******** FIX 3: BUTTON CONTENT WRAPPER ********* */}
-                                                                {/* ********************************************** */}
-                                                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={!firebaseStatus.connected}>
-                                                                    <>
-                                                                        <span className="sr-only">Open menu</span>
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                    </>
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem
-                                                                    onClick={() => {
-                                                                        setProductToEdit(product);
-                                                                        setIsEditDialogOpen(true);
-                                                                    }}
-                                                                >
-                                                                    <Edit className="mr-2 h-4 w-4" /> Edit Product
-                                                                </DropdownMenuItem>
-                                                                
-                                                                <DropdownMenuSeparator />
+      toast({
+        title: 'Product added',
+        description: `${created.name} has been added to the inventory.`,
+        variant: 'default',
+      });
+    } catch (err) {
+      console.error('Add product error', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to add product. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                                                                {/* ********************************************** */}
-                                                                {/* ******* FIX 2: ALERT DIALOG TRIGGER WRAPPER ******* */}
-                                                                {/* ********************************************** */}
-                                                                
-                                                                    <DropdownMenuItem
-                                                                        // The onClick here sets the product, the trigger opens the dialog
-                                                                        onClick={() => setProductToDelete(product)}
-                                                                        className="text-destructive focus:text-destructive"
-                                                                    >
-                                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                                    </DropdownMenuItem>
-                                                                    </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
-                                    )}
-                                    
-                                </TableBody>
-                            </Table>
-                        </div>
-                        
-                        {/* Mobile Card View (Omitted for brevity, assumed correct) */}
+  // Update product (PUT /api/products/:id)
+  const handleEditSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
 
-                    </CardContent>
-                    <CardFooter>
-                        <p className="text-sm text-muted-foreground">Showing {filteredProducts.length} of {products.length} products.</p>
-                    </CardFooter>
-                </Card>
+    if (!form.id) {
+      toast({ title: 'Error', description: 'Missing product id for update.', variant: 'destructive' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        name: form.name,
+        sku: form.sku,
+        category: form.category,
+        calculationType: form.calculationType,
+        weightPerUnit: Number(form.weightPerUnit),
+        stock: Number(form.stock),
+        salePrice: Number(form.salePrice),
+        cost: Number(form.cost),
+        gst: Number(form.gst),
+      };
+
+      const res = await fetch(`/api/products/${form.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(txt || 'Failed to update product');
+      }
+
+      const updated: Product = await res.json();
+      setProducts((prev) => prev.map((p) => (getId(p) === getId(updated) ? updated : p)));
+      setIsEditOpen(false);
+
+      toast({
+        title: 'Product updated',
+        description: `${(updated as any).name ?? 'Product'} was updated.`,
+        variant: 'default',
+      });
+    } catch (err) {
+      console.error('Update product error', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to update product. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete product (DELETE /api/products/:id)
+  const handleDelete = async (p: Product) => {
+    const id = getId(p);
+    if (!id) {
+      toast({ title: 'Error', description: 'Cannot delete product without an id.', variant: 'destructive' });
+      return;
+    }
+
+    if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(txt || 'Failed to delete product');
+      }
+
+      setProducts((prev) => prev.filter((item) => getId(item) !== id));
+      toast({
+        title: 'Deleted',
+        description: `"${p.name}" removed from inventory.`,
+        variant: 'default',
+      });
+    } catch (err) {
+      console.error('Delete product error', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete product. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold">Products</h2>
+        <div>
+          <Button onClick={openAdd}>Add New Product</Button>
+        </div>
+      </div>
+
+      <div>
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="animate-spin" />
+            Loading...
+          </div>
+        )}
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead className="text-sm text-muted-foreground">
+              <tr>
+                <th className="text-left py-2">Name</th>
+                <th className="text-left py-2">SKU</th>
+                <th className="text-left py-2">Category</th>
+                <th className="text-left py-2">Calc</th>
+                <th className="text-right py-2">WPU</th>
+                <th className="text-right py-2">Stock</th>
+                <th className="text-right py-2">Sale</th>
+                <th className="text-right py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-6 text-center text-sm text-muted-foreground">
+                    No products found.
+                  </td>
+                </tr>
+              )}
+
+              {products.map((p, idx) => {
+                const id = getId(p) ?? String(idx);
+                return (
+                  <tr key={id} className="border-t">
+                    <td className="py-2">{p.name}</td>
+                    <td className="py-2">{(p as any).sku ?? '—'}</td>
+                    <td className="py-2">{(p as any).category ?? '—'}</td>
+                    <td className="py-2">{(p as any).calculationType ?? '—'}</td>
+                    <td className="py-2 text-right">{(p as any).weightPerUnit ?? 0}</td>
+                    <td className="py-2 text-right">{(p as any).stock ?? 0}</td>
+                    <td className="py-2 text-right">{(p as any).salePrice ?? 0}</td>
+                    <td className="py-2 text-right space-x-2">
+                      <Button size="sm" onClick={() => openEdit(p)}>
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(p)}>
+                        Delete
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Product</DialogTitle>
+            <DialogDescription>Fill the product details and save.</DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAddSubmit();
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <Label>Name</Label>
+              <Input value={form.name} onChange={(e) => setField('name', e.currentTarget.value)} required />
             </div>
 
-            {/* All Dialogs must be siblings to the main content div, wrapped by the Fragment */}
-            <AddProductDialog
-                isOpen={isAddDialogOpen}
-                onOpenChange={setIsAddDialogOpen}
-                onProductAdded={handleProductAdded}
-            />
+            <div>
+              <Label>SKU</Label>
+              <Input value={form.sku} onChange={(e) => setField('sku', e.currentTarget.value)} />
+            </div>
 
-            <EditProductDialog
-                isOpen={isEditDialogOpen}
-                onOpenChange={setIsEditDialogOpen}
-                productToEdit={productToEdit}
-                handleEditSubmit={handleEditProduct}
-            />
+            <div>
+              <Label>Category</Label>
+              <Select value={form.category} onValueChange={(v) => setField('category', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
+                  <SelectItem value="Plates">Plates</SelectItem>
+                  <SelectItem value="Sheets">Sheets</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete 
-                            product <span className="font-bold">{productToDelete?.name}</span> and remove its data from the database.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive hover:bg-red-700">
-                            Delete Product
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </>
-    );
+            <div>
+              <Label>Calculation Type</Label>
+              <Select value={form.calculationType} onValueChange={(v) => setField('calculationType', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select calc type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Per Kg">Per Kg</SelectItem>
+                  <SelectItem value="Per Unit">Per Unit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Weight Per Unit</Label>
+              <Input
+                type="number"
+                value={String(form.weightPerUnit)}
+                onChange={(e) => setField('weightPerUnit', toNumber(e.currentTarget.value))}
+                step="any"
+              />
+            </div>
+
+            <div>
+              <Label>Stock</Label>
+              <Input
+                type="number"
+                value={String(form.stock)}
+                onChange={(e) => setField('stock', toNumber(e.currentTarget.value))}
+              />
+            </div>
+
+            <div>
+              <Label>Sale Price</Label>
+              <Input
+                type="number"
+                value={String(form.salePrice)}
+                onChange={(e) => setField('salePrice', toNumber(e.currentTarget.value))}
+              />
+            </div>
+
+            <div>
+              <Label>Cost</Label>
+              <Input
+                type="number"
+                value={String(form.cost)}
+                onChange={(e) => setField('cost', toNumber(e.currentTarget.value))}
+              />
+            </div>
+
+            <div>
+              <Label>GST (%)</Label>
+              <Input
+                type="number"
+                value={String(form.gst)}
+                onChange={(e) => setField('gst', toNumber(e.currentTarget.value))}
+              />
+            </div>
+
+            <DialogFooter className="flex items-center justify-between">
+              <div />
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setIsAddOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Save'}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>Modify product details and save.</DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleEditSubmit();
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <Label>Name</Label>
+              <Input value={form.name} onChange={(e) => setField('name', e.currentTarget.value)} required />
+            </div>
+
+            <div>
+              <Label>SKU</Label>
+              <Input value={form.sku} onChange={(e) => setField('sku', e.currentTarget.value)} />
+            </div>
+
+            <div>
+              <Label>Category</Label>
+              <Select value={form.category} onValueChange={(v) => setField('category', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
+                  <SelectItem value="Plates">Plates</SelectItem>
+                  <SelectItem value="Sheets">Sheets</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Calculation Type</Label>
+              <Select value={form.calculationType} onValueChange={(v) => setField('calculationType', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select calc type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Per Kg">Per Kg</SelectItem>
+                  <SelectItem value="Per Unit">Per Unit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Weight Per Unit</Label>
+              <Input
+                type="number"
+                value={String(form.weightPerUnit)}
+                onChange={(e) => setField('weightPerUnit', toNumber(e.currentTarget.value))}
+                step="any"
+              />
+            </div>
+
+            <div>
+              <Label>Stock</Label>
+              <Input
+                type="number"
+                value={String(form.stock)}
+                onChange={(e) => setField('stock', toNumber(e.currentTarget.value))}
+              />
+            </div>
+
+            <div>
+              <Label>Sale Price</Label>
+              <Input
+                type="number"
+                value={String(form.salePrice)}
+                onChange={(e) => setField('salePrice', toNumber(e.currentTarget.value))}
+              />
+            </div>
+
+            <div>
+              <Label>Cost</Label>
+              <Input
+                type="number"
+                value={String(form.cost)}
+                onChange={(e) => setField('cost', toNumber(e.currentTarget.value))}
+              />
+            </div>
+
+            <div>
+              <Label>GST (%)</Label>
+              <Input
+                type="number"
+                value={String(form.gst)}
+                onChange={(e) => setField('gst', toNumber(e.currentTarget.value))}
+              />
+            </div>
+
+            <DialogFooter className="flex items-center justify-between">
+              <div />
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setIsEditOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Save'}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
