@@ -28,7 +28,7 @@ interface InventoryClientProps {
   products: Product[];
 }
 
-// --- AddProductDialog Component (Updated to Match Screenshot)
+// --- AddProductDialog Component (Unchanged: Keeps Cost Price for Internal Use)
 interface AddProductDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,9 +43,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
   const [stock, setStock] = useState(0);
   const [salePrice, setSalePrice] = useState(0);
   const [costPrice, setCostPrice] = useState(0);
-  const [gst, setGst] = useState(0); // Default 0; can set to 18 if standard
+  const [gst, setGst] = useState(0);
   const [reorderPoint, setReorderPoint] = useState(0);
-  const [calculationType, setCalculationType] = useState<CalculationType>('Per Unit'); // Updated default from screenshot
+  const [calculationType, setCalculationType] = useState<CalculationType>('Per Unit');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,9 +66,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
         sku,
         category: category as ProductCategory,
         stock,
-        salePrice, // New: Sale Price
-        costPrice, // New: Cost Price
-        gst, // New: GST%
+        salePrice,
+        costPrice,
+        gst,
         reorderPoint,
         calculationType,
         createdAt: new Date().toISOString(),
@@ -230,7 +230,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
   );
 };
 
-// --- EditProductDialog Component (Updated to Match Screenshot)
+// --- EditProductDialog Component (Unchanged: Keeps Cost Price for Internal Use)
 interface EditProductDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -251,9 +251,9 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
         sku: productToEdit.sku,
         category: productToEdit.category,
         stock: productToEdit.stock,
-        salePrice: productToEdit.salePrice || 0, // New
-        costPrice: productToEdit.costPrice || 0, // New
-        gst: productToEdit.gst || 0, // New
+        salePrice: productToEdit.salePrice || 0,
+        costPrice: productToEdit.costPrice || 0,
+        gst: productToEdit.gst || 0,
         reorderPoint: productToEdit.reorderPoint || 0,
         calculationType: productToEdit.calculationType || 'Per Unit',
       });
@@ -296,9 +296,9 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
         sku: safeTrim(editData.sku),
         category: safeTrim(editData.category as string),
         stock: editData.stock ?? 0,
-        salePrice: editData.salePrice ?? 0, // New
-        costPrice: editData.costPrice ?? 0, // New
-        gst: editData.gst ?? 0, // New
+        salePrice: editData.salePrice ?? 0,
+        costPrice: editData.costPrice ?? 0,
+        gst: editData.gst ?? 0,
         reorderPoint: editData.reorderPoint ?? 0,
         calculationType: editData.calculationType || 'Per Unit',
         updatedAt: new Date().toISOString(),
@@ -477,7 +477,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
   );
 };
 
-// --- Main InventoryClient Component (Updated Table/Mobile for New Fields)
+// --- Main InventoryClient Component (Updated: Hide Cost Price in Table/Mobile)
 const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProducts }) => {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
@@ -642,7 +642,7 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
               </Select>
             </div>
 
-            {/* Desktop Table View (Added Columns for Cost Price & GST) */}
+            {/* Desktop Table View (Removed Cost Price Column) */}
             <div className="hidden md:block">
               <Table>
                 <TableHeader>
@@ -652,7 +652,6 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                     <TableHead>Category</TableHead>
                     <TableHead>Stock</TableHead>
                     <TableHead className="text-right">Sale Price</TableHead>
-                    <TableHead className="text-right">Cost Price</TableHead>
                     <TableHead className="text-right">GST%</TableHead>
                     <TableHead className="w-[50px] text-right">Actions</TableHead>
                   </TableRow>
@@ -661,7 +660,7 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                   {loading ? (
                     [...Array(5)].map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell colSpan={8}><Skeleton className="h-4 w-full" /></TableCell>
+                        <TableCell colSpan={7}><Skeleton className="h-4 w-full" /></TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -686,9 +685,6 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                           <TableCell className="text-right">
                             {formatNumber(product.salePrice)}
                             {product.calculationType === 'Per Kg' && <span className="text-muted-foreground text-xs">/kg</span>}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatNumber(product.costPrice)} {product.calculationType === 'Per Kg' && <span className="text-muted-foreground text-xs">/kg</span>}
                           </TableCell>
                           <TableCell className="text-right">
                             {product.gst || 0}%
@@ -730,7 +726,7 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
               </Table>
             </div>
 
-            {/* Mobile Card View (Added New Fields) */}
+            {/* Mobile Card View (Removed Cost Price Line) */}
             <div className="md:hidden space-y-4">
               {loading ? (
                 [...Array(5)].map((_, i) => (
@@ -771,10 +767,6 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                         <div className="flex justify-between">
                           <span className="text-sm text-muted-foreground">Sale Price:</span>
                           <span className="font-semibold">{formatNumber(product.salePrice)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Cost Price:</span>
-                          <span>{formatNumber(product.costPrice)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-sm text-muted-foreground">GST%:</span>
