@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { PlusCircle, MoreHorizontal, AlertTriangle, Database, Edit, Trash2, Loader2, ArrowUpDown } from 'lucide-react'; // Re-added ArrowUpDown if used in full file
+import { PlusCircle, MoreHorizontal, AlertTriangle, Database, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -18,7 +18,7 @@ import { addProduct, deleteProduct as deleteProductFromDB, getProducts, updatePr
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Re-added if used in mobile/full file
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Helper for formatting numbers
 const formatNumber = (num: number | undefined) => num !== undefined ? num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
@@ -28,7 +28,7 @@ interface InventoryClientProps {
   products: Product[];
 }
 
-// --- AddProductDialog Component (Unchanged from your code)
+// --- AddProductDialog Component (Updated to Match Screenshot)
 interface AddProductDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,19 +39,21 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
   const { toast } = useToast();
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
-  const [stock, setStock] = useState(0);
-  const [price, setPrice] = useState(0);
   const [category, setCategory] = useState<ProductCategory | ''>('');
-  const [calculationType, setCalculationType] = useState<CalculationType>('Per Pc');
-  const [reorderPoint, setReorderPoint] = useState<number | undefined>(undefined);
+  const [stock, setStock] = useState(0);
+  const [salePrice, setSalePrice] = useState(0);
+  const [costPrice, setCostPrice] = useState(0);
+  const [gst, setGst] = useState(0); // Default 0; can set to 18 if standard
+  const [reorderPoint, setReorderPoint] = useState(0);
+  const [calculationType, setCalculationType] = useState<CalculationType>('Per Unit'); // Updated default from screenshot
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !sku || stock < 0 || price < 0 || !category) {
+    if (!name || !sku || !category || stock < 0 || salePrice < 0 || costPrice < 0 || gst < 0) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (Name, SKU, Stock, Price, Category) correctly.",
+        description: "Please fill in all required fields (Name, SKU, Category, Stock, Sale Price, Cost Price) correctly. Values must be non-negative.",
         variant: "destructive",
       });
       return;
@@ -62,11 +64,13 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
       const newProduct: Omit<Product, 'id'> = {
         name,
         sku,
-        stock,
-        price,
         category: category as ProductCategory,
-        calculationType,
+        stock,
+        salePrice, // New: Sale Price
+        costPrice, // New: Cost Price
+        gst, // New: GST%
         reorderPoint,
+        calculationType,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -82,11 +86,13 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
       // Reset form
       setName('');
       setSku('');
-      setStock(0);
-      setPrice(0);
       setCategory('');
-      setCalculationType('Per Pc');
-      setReorderPoint(undefined);
+      setStock(0);
+      setSalePrice(0);
+      setCostPrice(0);
+      setGst(0);
+      setReorderPoint(0);
+      setCalculationType('Per Unit');
 
     } catch (error) {
       console.error('Failed to add product:', error);
@@ -106,7 +112,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
           <DialogDescription>
-            Fill in the details for the new inventory item.
+            Fill in the details below to add a new product to the inventory.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -126,21 +132,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="General">General</SelectItem>
+                  <SelectItem value="Red Bricks">Red Bricks</SelectItem>
                   <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="type" className="text-right">Calc Type</Label>
-              <Select onValueChange={(value: CalculationType) => setCalculationType(value)} value={calculationType}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Per Pc">Per Pc</SelectItem>
-                  <SelectItem value="Per Kg">Per Kg</SelectItem>
-                  <SelectItem value="Per Load">Per Load</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -157,15 +151,42 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="price" className="text-right">Price*</Label>
+              <Label htmlFor="salePrice" className="text-right">Sale Price*</Label>
               <Input 
-                id="price" 
+                id="salePrice" 
                 type="number" 
-                value={price} 
-                onChange={(e) => setPrice(parseFloat(e.target.value) || 0)} 
+                value={salePrice} 
+                onChange={(e) => setSalePrice(parseFloat(e.target.value) || 0)} 
                 className="col-span-3" 
                 step="0.01" 
                 min="0" 
+                required 
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="costPrice" className="text-right">Cost Price</Label>
+              <Input 
+                id="costPrice" 
+                type="number" 
+                value={costPrice} 
+                onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)} 
+                className="col-span-3" 
+                step="0.01" 
+                min="0" 
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="gst" className="text-right">GST%*</Label>
+              <Input 
+                id="gst" 
+                type="number" 
+                value={gst} 
+                onChange={(e) => setGst(parseFloat(e.target.value) || 0)} 
+                className="col-span-3" 
+                step="0.01" 
+                min="0" 
+                max="100" 
+                placeholder="e.g., 18"
                 required 
               />
             </div>
@@ -174,14 +195,30 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
               <Input 
                 id="reorderPoint" 
                 type="number" 
-                value={reorderPoint === undefined ? '' : reorderPoint} 
-                onChange={(e) => setReorderPoint(parseInt(e.target.value) || undefined)} 
+                value={reorderPoint} 
+                onChange={(e) => setReorderPoint(parseInt(e.target.value) || 0)} 
                 className="col-span-3" 
                 min="0"
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">Calculation Type</Label>
+              <Select onValueChange={(value: CalculationType) => setCalculationType(value)} value={calculationType}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Per Pc">Per Pc</SelectItem>
+                  <SelectItem value="Per Kg">Per Kg</SelectItem>
+                  <SelectItem value="Per Load">Per Load</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add Product
@@ -193,7 +230,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
   );
 };
 
-// --- EditProductDialog Component (Unchanged from your code)
+// --- EditProductDialog Component (Updated to Match Screenshot)
 interface EditProductDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -212,11 +249,13 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
         id: productToEdit.id,
         name: productToEdit.name,
         sku: productToEdit.sku,
-        stock: productToEdit.stock,
-        price: productToEdit.price,
         category: productToEdit.category,
-        calculationType: productToEdit.calculationType,
-        reorderPoint: productToEdit.reorderPoint,
+        stock: productToEdit.stock,
+        salePrice: productToEdit.salePrice || 0, // New
+        costPrice: productToEdit.costPrice || 0, // New
+        gst: productToEdit.gst || 0, // New
+        reorderPoint: productToEdit.reorderPoint || 0,
+        calculationType: productToEdit.calculationType || 'Per Unit',
       });
     } else {
       setEditData({});
@@ -234,10 +273,10 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
     e.preventDefault();
     if (!productToEdit) return;
 
-    if (!editData.name || !editData.sku || editData.stock === undefined || editData.price === undefined || !editData.category) {
+    if (!editData.name || !editData.sku || !editData.category || editData.stock === undefined || editData.salePrice === undefined || editData.costPrice === undefined || editData.gst === undefined || editData.stock < 0 || editData.salePrice < 0 || editData.costPrice < 0 || editData.gst < 0) {
       toast({
         title: "Validation Error",
-        description: "Name, SKU, Stock, Price, and Category are required.",
+        description: "Required fields must be filled and non-negative.",
         variant: "destructive",
       });
       return;
@@ -256,16 +295,18 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
         name: safeTrim(editData.name),
         sku: safeTrim(editData.sku),
         category: safeTrim(editData.category as string),
-        calculationType: editData.calculationType || 'Per Pc',
         stock: editData.stock ?? 0,
-        price: editData.price ?? 0,
-        reorderPoint: editData.reorderPoint ?? null,
+        salePrice: editData.salePrice ?? 0, // New
+        costPrice: editData.costPrice ?? 0, // New
+        gst: editData.gst ?? 0, // New
+        reorderPoint: editData.reorderPoint ?? 0,
+        calculationType: editData.calculationType || 'Per Unit',
+        updatedAt: new Date().toISOString(),
       };
 
       const updatedProduct: Product = {
         ...productToEdit,
         ...updates,
-        updatedAt: new Date().toISOString(),
       } as Product;
 
       console.log('Updating product:', { id: updatedProduct.id, updates });
@@ -335,24 +376,9 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="General">General</SelectItem>
+                  <SelectItem value="Red Bricks">Red Bricks</SelectItem>
                   <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-type" className="text-right">Calc Type</Label>
-              <Select 
-                onValueChange={(value: CalculationType) => handleChange('calculationType', value)} 
-                value={editData.calculationType || 'Per Pc'}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Per Pc">Per Pc</SelectItem>
-                  <SelectItem value="Per Kg">Per Kg</SelectItem>
-                  <SelectItem value="Per Load">Per Load</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -369,15 +395,42 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-price" className="text-right">Price*</Label>
+              <Label htmlFor="edit-salePrice" className="text-right">Sale Price*</Label>
               <Input 
-                id="edit-price" 
+                id="edit-salePrice" 
                 type="number" 
-                value={editData.price || 0} 
-                onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)} 
+                value={editData.salePrice || 0} 
+                onChange={(e) => handleChange('salePrice', parseFloat(e.target.value) || 0)} 
                 className="col-span-3" 
                 step="0.01" 
                 min="0" 
+                required 
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-costPrice" className="text-right">Cost Price</Label>
+              <Input 
+                id="edit-costPrice" 
+                type="number" 
+                value={editData.costPrice || 0} 
+                onChange={(e) => handleChange('costPrice', parseFloat(e.target.value) || 0)} 
+                className="col-span-3" 
+                step="0.01" 
+                min="0" 
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-gst" className="text-right">GST%*</Label>
+              <Input 
+                id="edit-gst" 
+                type="number" 
+                value={editData.gst || 0} 
+                onChange={(e) => handleChange('gst', parseFloat(e.target.value) || 0)} 
+                className="col-span-3" 
+                step="0.01" 
+                min="0" 
+                max="100" 
+                placeholder="e.g., 18"
                 required 
               />
             </div>
@@ -386,17 +439,36 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
               <Input 
                 id="edit-reorderPoint" 
                 type="number" 
-                value={editData.reorderPoint === undefined ? '' : editData.reorderPoint} 
-                onChange={(e) => handleChange('reorderPoint', parseInt(e.target.value) || undefined)} 
+                value={editData.reorderPoint || 0} 
+                onChange={(e) => handleChange('reorderPoint', parseInt(e.target.value) || 0)} 
                 className="col-span-3" 
                 min="0"
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-type" className="text-right">Calculation Type</Label>
+              <Select 
+                onValueChange={(value: CalculationType) => handleChange('calculationType', value)} 
+                value={editData.calculationType || 'Per Unit'}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Per Pc">Per Pc</SelectItem>
+                  <SelectItem value="Per Kg">Per Kg</SelectItem>
+                  <SelectItem value="Per Load">Per Load</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save changes
+              Save Changes
             </Button>
           </DialogFooter>
         </form>
@@ -405,10 +477,10 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
   );
 };
 
-// --- Main InventoryClient Component (With Fixes + Expanded Mobile Placeholder)
+// --- Main InventoryClient Component (Updated Table/Mobile for New Fields)
 const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProducts }) => {
   const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [loading, setLoading] = useState(false); // Initial false for server data
+  const [loading, setLoading] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
@@ -418,7 +490,6 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
   const [firebaseStatus, setFirebaseStatus] = useState({ connected: true, message: "" });
   const { toast } = useToast();
 
-  // Refetch function (manual or on mount)
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -442,7 +513,6 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
     }
   }, [toast]);
 
-  // Optional refetch on mount (comment out to use only server data)
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
@@ -485,7 +555,6 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
     }
   };
 
-  // Filtering and Sorting (Unchanged; add sorting logic here if in full file, e.g., state for sortBy)
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
@@ -566,13 +635,14 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="General">General</SelectItem>
+                  <SelectItem value="Red Bricks">Red Bricks</SelectItem>
                   <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Desktop Table View (Unchanged) */}
+            {/* Desktop Table View (Added Columns for Cost Price & GST) */}
             <div className="hidden md:block">
               <Table>
                 <TableHeader>
@@ -581,7 +651,9 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                     <TableHead>SKU</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Stock</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Sale Price</TableHead>
+                    <TableHead className="text-right">Cost Price</TableHead>
+                    <TableHead className="text-right">GST%</TableHead>
                     <TableHead className="w-[50px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -589,7 +661,7 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                   {loading ? (
                     [...Array(5)].map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell colSpan={6}><Skeleton className="h-4 w-full" /></TableCell>
+                        <TableCell colSpan={8}><Skeleton className="h-4 w-full" /></TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -612,8 +684,14 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatNumber(product.price)}
+                            {formatNumber(product.salePrice)}
                             {product.calculationType === 'Per Kg' && <span className="text-muted-foreground text-xs">/kg</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatNumber(product.costPrice)} {product.calculationType === 'Per Kg' && <span className="text-muted-foreground text-xs">/kg</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {product.gst || 0}%
                           </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
@@ -652,7 +730,7 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
               </Table>
             </div>
 
-            {/* Mobile Card View (Expanded Placeholder - Replace with Your Full Code) */}
+            {/* Mobile Card View (Added New Fields) */}
             <div className="md:hidden space-y-4">
               {loading ? (
                 [...Array(5)].map((_, i) => (
@@ -691,8 +769,16 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Price:</span>
-                          <span className="font-semibold">{formatNumber(product.price)} {product.calculationType === 'Per Kg' && '/kg'}</span>
+                          <span className="text-sm text-muted-foreground">Sale Price:</span>
+                          <span className="font-semibold">{formatNumber(product.salePrice)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Cost Price:</span>
+                          <span>{formatNumber(product.costPrice)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">GST%:</span>
+                          <span>{product.gst || 0}%</span>
                         </div>
                       </CardContent>
                       <CardFooter className="pt-2 border-t">
@@ -729,7 +815,7 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                   </CardContent>
                 </Card>
               )}
-              <ScrollArea className="h-2" /> {/* If using scroll for long lists */}
+              <ScrollArea className="h-2" />
             </div>
           </CardContent>
           <CardFooter>
@@ -738,7 +824,7 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
         </Card>
       </div>
 
-      {/* Dialogs (Unchanged) */}
+      {/* Dialogs */}
       <AddProductDialog
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
