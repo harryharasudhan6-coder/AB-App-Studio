@@ -1,48 +1,7 @@
-// @/lib/data.ts – Complete Merged File (Your Original + Real-Time Listeners & Enhancements)
-// All your custom logic preserved; added timestamps for sorting/sync, listeners for global real-time updates.
-
 import { db } from './firebase';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  writeBatch, 
-  getDoc, 
-  query, 
-  limit, 
-  runTransaction, 
-  DocumentReference, 
-  updateDoc, 
-  increment, 
-  where, 
-  orderBy, 
-  Transaction,
-  onSnapshot // NEW: For real-time listeners
-} from 'firebase/firestore';
-import type { 
-  Customer, 
-  Product, 
-  Order, 
-  Payment, 
-  OrderItem, 
-  PaymentAlert, 
-  LowStockAlert, 
-  Supplier, 
-  Purchase, 
-  PurchasePayment, 
-  OrderStatus, 
-  PaymentMode, 
-  CalculationType, 
-  PurchasePaymentTerm 
-} from './types';
+import { collection, getDocs, addDoc, doc, setDoc, deleteDoc, writeBatch, getDoc, query, limit, runTransaction, DocumentReference, updateDoc, increment, where, orderBy, Transaction } from 'firebase/firestore';
+import type { Customer, Product, Order, Payment, OrderItem, PaymentAlert, LowStockAlert, Supplier, Purchase, PurchasePayment, OrderStatus, PaymentMode, CalculationType, PurchasePaymentTerm } from './types';
 import { differenceInDays, addDays, startOfToday, subMonths } from 'date-fns';
-
-// =============================================================================
-// YOUR ORIGINAL CORE FUNCTIONS (Unchanged, with Minor Enhancements for Timestamps)
-// =============================================================================
 
 // GET ALL DATA - Used only for components that truly need access to multiple data types, e.g., the order dialog.
 export async function getCoreOrderData() {
@@ -59,14 +18,12 @@ export async function getCoreOrderData() {
     return { customers, products, orders };
 }
 
+
 // CUSTOMER FUNCTIONS
 export const getCustomers = async (): Promise<Customer[]> => {
     try {
-        const snapshot = await getDocs(query(collection(db, 'customers'), orderBy('name'))); // Your original orderBy kept
-        return snapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            ...doc.data() 
-        } as Customer));
+        const snapshot = await getDocs(query(collection(db, 'customers'), orderBy('name')));
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
     } catch (error) {
         console.error("Error fetching customers: ", error);
         return [];
@@ -100,7 +57,7 @@ export const getCustomerBalance = async (customerId: string): Promise<number> =>
 
         let orders = snapshot.docs.map(doc => doc.data() as Order);
         
-        orders.sort((a, b) => {
+         orders.sort((a, b) => {
             try {
                 // Handle both string and Firestore Timestamp dates
                 const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
@@ -131,13 +88,11 @@ export const getCustomerBalance = async (customerId: string): Promise<number> =>
     }
 }
 
+
 export const addCustomer = async (customerData: Omit<Customer, 'id' | 'transactionHistory' | 'orders'>): Promise<Customer> => {
-    const now = new Date().toISOString(); // NEW: Add timestamps
     const newCustomer: Omit<Customer, 'id'> = {
         ...customerData,
-        transactionHistory: { totalSpent: 0, lastPurchaseDate: now.split('T')[0] }, // Updated to use now
-        createdAt: now, // NEW: For sorting/sync
-        updatedAt: now // NEW: For sorting/sync
+        transactionHistory: { totalSpent: 0, lastPurchaseDate: new Date().toISOString().split('T')[0] },
     };
     const docRef = await addDoc(collection(db, 'customers'), newCustomer);
     return { id: docRef.id, ...newCustomer, orders: [] };
@@ -146,50 +101,31 @@ export const addCustomer = async (customerData: Omit<Customer, 'id' | 'transacti
 export const updateCustomer = async (customerData: Partial<Customer>): Promise<void> => {
     const { id, ...dataToUpdate } = customerData;
     if (!id) throw new Error("Customer ID is required to update.");
-    const updatesWithTimestamp = { // NEW: Add updatedAt
-        ...dataToUpdate,
-        updatedAt: new Date().toISOString()
-    };
-    await setDoc(doc(db, 'customers', id), updatesWithTimestamp, { merge: true });
+    await setDoc(doc(db, 'customers', id), dataToUpdate, { merge: true });
 };
 
 export const deleteCustomer = async (id: string) => {
     await deleteDoc(doc(db, 'customers', id));
 };
 
+
 // PRODUCT FUNCTIONS
 export const getProducts = async (): Promise<Product[]> => {
     try {
-        // ENHANCED: Added orderBy for consistency (use createdAt if exists; fallback to no order)
-        let q = query(collection(db, 'products'));
-        try {
-            q = query(q, orderBy('createdAt', 'desc'));
-        } catch (e) {
-            console.warn('createdAt field not available; fetching without order');
-        }
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            ...doc.data() 
-        } as Product));
+        const snapshot = await getDocs(collection(db, 'products'));
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
     } catch (error) {
         console.error("Error fetching products: ", error);
         return [];
     }
 };
 
-// VITAL FIX: ADDED MISSING addProduct FUNCTION (Your note preserved)
+// VITAL FIX: ADDED MISSING addProduct FUNCTION
 export const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
     console.log("🔄 addProduct called with data:", productData);
     try {
-        const now = new Date().toISOString(); // NEW: Timestamps
-        const dataWithTimestamps = { // NEW: Add for sync
-            ...productData,
-            createdAt: now,
-            updatedAt: now
-        };
-        const docRef = await addDoc(collection(db, 'products'), dataWithTimestamps);
-        const newProduct: Product = { id: docRef.id, ...dataWithTimestamps };
+        const docRef = await addDoc(collection(db, 'products'), productData);
+        const newProduct: Product = { id: docRef.id, ...productData };
         console.log("✅ Product added successfully with ID:", docRef.id);
         return newProduct;
     } catch (error) {
@@ -214,15 +150,10 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
 
         console.log("🧹 Cleaned updates:", cleanUpdates);
 
-        const updatesWithTimestamp = { // NEW: Add updatedAt
-            ...cleanUpdates,
-            updatedAt: new Date().toISOString()
-        };
-
         const productRef = doc(db, 'products', productId.trim());
         console.log("📄 Document reference path:", productRef.path);
         
-        await setDoc(productRef, updatesWithTimestamp, { merge: true });
+        await setDoc(productRef, cleanUpdates, { merge: true });
         
         console.log("✅ updateProduct completed successfully");
         
@@ -239,6 +170,7 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
     }
 };
 
+
 // ORDER & PAYMENT FUNCTIONS
 export const getOrders = async (): Promise<Order[]> => {
     try {
@@ -252,13 +184,7 @@ export const getOrders = async (): Promise<Order[]> => {
         // Query is simplified to ensure data retrieval regardless of indexing issues.
         const ordersCollectionRef = collection(db, 'orders'); 
         
-        let q = query(ordersCollectionRef); // Base query
-        // ENHANCED: Add orderBy for consistency (orderDate desc, as per your schema)
-        try {
-            q = query(q, orderBy('orderDate', 'desc'));
-        } catch (e) {
-            console.warn('orderDate field not available for ordering; fetching without');
-        }
+        const q = query(ordersCollectionRef); 
         
         let snapshot = await getDocs(q);
         
@@ -279,19 +205,29 @@ export const getOrders = async (): Promise<Order[]> => {
     }
 };
 
-// NOTE: Your useInvoiceData hook – this seems React-specific; integrate in components, not here.
-// const useInvoiceData = () => { ... }; // Commented out; add to a hook file if needed.
+const useInvoiceData = () => {
+  const [allInvoices, setAllInvoices] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refreshOrders = async () => {
+    setLoading(true);
+    const invoices = await getInvoices();
+    setAllInvoices(invoices);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refreshOrders();
+  }, []);
+
+  return { allInvoices, refreshOrders, loading };
+};
+
 
 export const getOrdersByCustomerId = async (customerId: string): Promise<Order[]> => {
     if (!customerId) return [];
     try {
-        let q = query(collection(db, 'orders'), where('customerId', '==', customerId));
-        // ENHANCED: Add orderBy if possible
-        try {
-            q = query(q, orderBy('orderDate', 'desc'));
-        } catch (e) {
-            console.warn('orderDate not available for ordering');
-        }
+        const q = query(collection(db, 'orders'), where('customerId', '==', customerId));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
     } catch (error) {
@@ -300,7 +236,7 @@ export const getOrdersByCustomerId = async (customerId: string): Promise<Order[]
     }
 };
 
-// ✅ Add this new function just below getOrdersByCustomerId (Your original)
+// ✅ Add this new function just below getOrdersByCustomerId
 export const getInvoices = async (): Promise<Order[]> => {
   try {
     if (!db) {
@@ -309,15 +245,8 @@ export const getInvoices = async (): Promise<Order[]> => {
     }
 
     // Firestore only has 'orders', so we use that collection
-    let invoicesRef = collection(db, "orders");
-    let q = query(invoicesRef);
-    // ENHANCED: Add orderBy for invoices (use orderDate desc)
-    try {
-        q = query(q, orderBy('orderDate', 'desc'));
-    } catch (e) {
-        console.warn('orderDate not available for invoice ordering');
-    }
-    const snapshot = await getDocs(q);
+    const invoicesRef = collection(db, "orders");
+    const snapshot = await getDocs(invoicesRef);
 
     if (snapshot.empty) {
       console.log("No documents found in the 'orders' collection (used for invoices).");
@@ -332,6 +261,7 @@ export const getInvoices = async (): Promise<Order[]> => {
     return [];
   }
 };
+
 
 async function getNextId(transaction: Transaction, counterName: string, prefix: string): Promise<string> {
     const counterRef = doc(db, "counters", counterName);
@@ -365,6 +295,7 @@ const cleanDataForFirebase = (data: any): any => {
 
     return data;
 };
+
 
 async function runBalanceChainUpdate(customerId: string, workload: (orders: Order[]) => Order[]) {
     // Read outside the transaction
@@ -437,7 +368,6 @@ async function runBalanceChainUpdate(customerId: string, workload: (orders: Orde
 }
 
 export const addOrder = async (orderData: Omit<Order, 'id' | 'customerName'>): Promise<Order> => {
-    const now = new Date().toISOString(); // NEW: For timestamps
     let finalNewOrder : Order | null = null;
     
     await runTransaction(db, async(transaction) => {
@@ -456,8 +386,6 @@ export const addOrder = async (orderData: Omit<Order, 'id' | 'customerName'>): P
             balanceDue: 0, 
             grandTotal: 0,
             status: 'Pending',
-            createdAt: now, // NEW: Timestamp
-            updatedAt: now // NEW: Timestamp
         };
 
         if (newOrder.paymentTerm === 'Full Payment' && newOrder.payments && newOrder.payments.length > 0) {
@@ -491,6 +419,7 @@ export const addOrder = async (orderData: Omit<Order, 'id' | 'customerName'>): P
     return finalNewOrder;
 };
 
+
 export const updateOrder = async (orderData: Order): Promise<void> => {
     if (!orderData.id) throw new Error("Order ID is required to update.");
 
@@ -513,7 +442,6 @@ export const updateOrder = async (orderData: Order): Promise<void> => {
 
         // Apply new stock and customer balance changes from the updated order
         orderData.isOpeningBalance = orderData.items.some(item => item.productName === 'Opening Balance');
-        orderData.updatedAt = new Date().toISOString(); // NEW: Timestamp on update
         for (const item of orderData.items) {
             if(item.productId !== 'OPENING_BALANCE') {
                 transaction.update(doc(db, "products", item.productId), { stock: increment(-item.quantity) });
@@ -530,6 +458,7 @@ export const updateOrder = async (orderData: Order): Promise<void> => {
         );
     });
 };
+
 
 export const deleteOrder = async (orderToDelete: Order): Promise<void> => {
     if (!orderToDelete.id) throw new Error("Order ID is required for deletion.");
@@ -643,17 +572,11 @@ export const addBulkPayment = async (data: BulkPaymentData): Promise<void> => {
     });
 };
 
+
 // SUPPLIER FUNCTIONS
 export const getSuppliers = async (): Promise<Supplier[]> => {
     try {
-        // ENHANCED: Add orderBy (name desc, assuming field)
-        let q = query(collection(db, 'suppliers'));
-        try {
-            q = query(q, orderBy('name', 'desc'));
-        } catch (e) {
-            console.warn('name field not available for ordering');
-        }
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocs(collection(db, 'suppliers'));
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
     } catch (error) {
         console.error("Error fetching suppliers: ", error);
@@ -662,24 +585,14 @@ export const getSuppliers = async (): Promise<Supplier[]> => {
 };
 
 export const addSupplier = async (supplierData: Omit<Supplier, 'id'>): Promise<Supplier> => {
-    const now = new Date().toISOString(); // NEW: Timestamps
-    const dataWithTimestamps = { // NEW: Add for sync
-        ...supplierData,
-        createdAt: now,
-        updatedAt: now
-    };
-    const docRef = await addDoc(collection(db, 'suppliers'), dataWithTimestamps);
-    return { id: docRef.id, ...dataWithTimestamps } as Supplier;
+    const docRef = await addDoc(collection(db, 'suppliers'), supplierData);
+    return { id: docRef.id, ...supplierData };
 };
 
 export const updateSupplier = async (supplierData: Partial<Supplier>): Promise<void> => {
     const { id, ...dataToUpdate } = supplierData;
     if (!id) throw new Error("Supplier ID is required to update.");
-    const updatesWithTimestamp = { // NEW: Add updatedAt
-        ...dataToUpdate,
-        updatedAt: new Date().toISOString()
-    };
-    await setDoc(doc(db, 'suppliers', id), updatesWithTimestamp, { merge: true });
+    await setDoc(doc(db, 'suppliers', id), dataToUpdate, { merge: true });
 };
 
 export const deleteSupplier = async (id: string): Promise<void> => {
@@ -689,14 +602,7 @@ export const deleteSupplier = async (id: string): Promise<void> => {
 // PURCHASE FUNCTIONS
 export const getPurchases = async (): Promise<Purchase[]> => {
     try {
-        // ENHANCED: Add orderBy (createdAt desc)
-        let q = query(collection(db, 'purchases'));
-        try {
-            q = query(q, orderBy('createdAt', 'desc'));
-        } catch (e) {
-            console.warn('createdAt not available for ordering');
-        }
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocs(collection(db, 'purchases'));
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Purchase));
     } catch (error) {
         console.error("Error fetching purchases: ", error);
@@ -705,7 +611,7 @@ export const getPurchases = async (): Promise<Purchase[]> => {
 };
 
 export const addPurchase = async (purchaseData: Omit<Purchase, 'id' | 'supplierName'>): Promise<Purchase> => {
-    const now = new Date().toISOString(); // NEW: Timestamp
+    
     let newPurchaseWithId!: Purchase;
 
     await runTransaction(db, async (transaction) => {
@@ -715,13 +621,7 @@ export const addPurchase = async (purchaseData: Omit<Purchase, 'id' | 'supplierN
 
         const purchaseId = await getNextId(transaction, 'purchaseCounter', 'PUR');
 
-        newPurchaseWithId = { 
-            ...purchaseData, 
-            supplierName: supplierSnap.data()?.name, 
-            id: purchaseId,
-            createdAt: now, // NEW
-            updatedAt: now // NEW
-        };
+        newPurchaseWithId = { ...purchaseData, supplierName: supplierSnap.data()?.name, id: purchaseId };
         
         if (newPurchaseWithId.payments && newPurchaseWithId.payments.length > 0) {
             newPurchaseWithId.payments = newPurchaseWithId.payments.map((p, i) => ({
@@ -760,13 +660,11 @@ export const addPaymentToPurchase = async (purchaseId: string, payment: Omit<Pur
                 ...purchase,
                 payments: [...existingPayments, newPayment],
                 balanceDue: newBalance,
-                updatedAt: new Date().toISOString() // NEW: Timestamp
             };
 
             transaction.update(purchaseRef, {
                 payments: updatedPurchase.payments,
                 balanceDue: updatedPurchase.balanceDue,
-                updatedAt: updatedPurchase.updatedAt // Include in update
             });
         });
     } catch(e) {
@@ -777,7 +675,7 @@ export const addPaymentToPurchase = async (purchaseId: string, payment: Omit<Pur
     return updatedPurchase;
 };
 
-// DASHBOARD & REPORTING DATA (Your original, unchanged)
+// DASHBOARD & REPORTING DATA
 export const getDashboardData = async () => {
     const ordersPromise = getOrders();
     const customersPromise = getCustomers();
@@ -1000,8 +898,8 @@ export const resetAllPayments = async () => {
         throw new Error("Failed to reset payments for all orders.");
     }
 };
+// New function to add to data.ts
 
-// New function to add to data.ts (Your original)
 export const deletePaymentFromOrder = async (
   customerId: string,
   orderId: string,
@@ -1016,7 +914,6 @@ export const deletePaymentFromOrder = async (
         return {
           ...order,
           payments: updatedPayments,
-          updatedAt: new Date().toISOString() // NEW: Timestamp on update
         } as Order;
       }
       return order;
@@ -1033,125 +930,4 @@ export const deletePaymentFromOrder = async (
     console.error("Error deleting payment from order:", error);
     throw new Error("Failed to delete payment from order.");
   }
-};
-
-// =============================================================================
-// NEW: REAL-TIME LISTENER FUNCTIONS (For Global Sync – Call from Components/Hooks)
-// =============================================================================
-// Each returns an unsubscribe function. Use with your fetches for initial load + live updates.
-// E.g., listenToOrders(callback) – callback fires on add/edit/delete.
-
-export const listenToCustomers = (callback: (customers: Customer[]) => void): (() => void) => {
-  let q = query(collection(db, 'customers'), orderBy('name')); // Your preferred order
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const customers = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      } as Customer));
-      callback(customers);
-    },
-    (error) => {
-      console.error('Customers listener error:', error);
-      callback([]);
-    }
-  );
-  return unsubscribe;
-};
-
-export const listenToProducts = (callback: (products: Product[]) => void): (() => void) => {
-  let q = query(collection(db, 'products'));
-  try {
-    q = query(q, orderBy('createdAt', 'desc'));
-  } catch (e) {
-    q = query(collection(db, 'products')); // Fallback
-  }
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const products = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      } as Product));
-      callback(products);
-    },
-    (error) => {
-      console.error('Products listener error:', error);
-      callback([]);
-    }
-  );
-  return unsubscribe;
-};
-
-export const listenToOrders = (callback: (orders: Order[]) => void): (() => void) => {
-  let q = query(collection(db, 'orders'));
-  try {
-    q = query(q, orderBy('orderDate', 'desc')); // Your schema
-  } catch (e) {
-    q = query(collection(db, 'orders')); // Fallback
-  }
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const orders = snapshot.docs.map((doc) => ({
-        ...doc.data(),
-        _id: doc.id // Your mapping style
-      } as Order));
-      callback(orders);
-    },
-    (error) => {
-      console.error('Orders listener error:', error);
-      callback([]);
-    }
-  );
-  return unsubscribe;
-};
-
-export const listenToSuppliers = (callback: (suppliers: Supplier[]) => void): (() => void) => {
-  let q = query(collection(db, 'suppliers'), orderBy('name', 'desc'));
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const suppliers = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      } as Supplier));
-      callback(suppliers);
-    },
-    (error) => {
-      console.error('Suppliers listener error:', error);
-      callback([]);
-    }
-  );
-  return unsubscribe;
-};
-
-export const listenToPurchases = (callback: (purchases: Purchase[]) => void): (() => void) => {
-  let q = query(collection(db, 'purchases'));
-  try {
-    q = query(q, orderBy('createdAt', 'desc'));
-  } catch (e) {
-    q = query(collection(db, 'purchases')); // Fallback
-  }
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const purchases = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      } as Purchase));
-      callback(purchases);
-    },
-    (error) => {
-      console.error('Purchases listener error:', error);
-      callback([]);
-    }
-  );
-  return unsubscribe;
-};
-
-// BONUS: Listen to invoices (uses orders, as per your setup)
-export const listenToInvoices = (callback: (invoices: Order[]) => void): (() => void) => {
-  return listenToOrders(callback); // Alias – since invoices are orders
 };

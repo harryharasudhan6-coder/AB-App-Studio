@@ -34,6 +34,9 @@ export interface Supplier {
   phone: string;
   address: string;
   gstin?: string;
+  createdAt?: string | Timestamp;  // Added (optional)
+  updatedAt?: string | Timestamp;  // Added for audit
+
 }
 
 // Product (Your Code + Timestamps; Made category/calculationType Required; cost Required)

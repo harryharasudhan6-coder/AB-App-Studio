@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { addProduct, deleteProduct as deleteProductFromDB, getProducts, updateProduct } from '@/lib/data';
+import { addProduct, deleteProduct as deleteProductFromDB, getProducts, updateProduct, getOrders, getInvoices, getCustomers, getSuppliers, getPurchases } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -489,6 +489,49 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
   const [filterCategory, setFilterCategory] = useState<ProductCategory | 'all'>('all');
   const [firebaseStatus, setFirebaseStatus] = useState({ connected: true, message: "" });
   const { toast } = useToast();
+  
+  // TEMP TEST FOR STEP 2: ADD THIS ENTIRE BLOCK HERE (same indentation as useStates)
+  useEffect(() => {
+    console.log('🧪 Step 2: Starting fetch tests...');
+
+    getProducts().then((products) => {
+      console.log('✅ Fetched Products:', products.length, 'items. First one:', products[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Products fetch error:', error);
+    });
+
+    getOrders().then((orders) => {
+      console.log('✅ Fetched Orders:', orders.length, 'items. First one:', orders[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Orders fetch error:', error);
+    });
+
+    getInvoices().then((invoices) => {
+      console.log('✅ Fetched Invoices:', invoices.length, 'items. First one:', invoices[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Invoices fetch error:', error);
+    });
+
+    getCustomers().then((customers) => {
+      console.log('✅ Fetched Customers:', customers.length, 'items. First one:', customers[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Customers fetch error:', error);
+    });
+
+    getSuppliers().then((suppliers) => {
+      console.log('✅ Fetched Suppliers:', suppliers.length, 'items. First one:', suppliers[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Suppliers fetch error:', error);
+    });
+
+    getPurchases().then((purchases) => {
+      console.log('✅ Fetched Purchases:', purchases.length, 'items. First one:', purchases[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Purchases fetch error:', error);
+    });
+
+    console.log('🧪 Step 2: Fetch tests complete.');
+  }, []);  // Empty array: Runs once on load
 
   const fetchProducts = useCallback(async () => {
     try {
