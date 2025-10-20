@@ -239,6 +239,20 @@ export const updateProduct = async (productId: string, updates: Partial<Product>
     }
 };
 
+export const deleteProduct = async (productId: string): Promise<void> => {
+  try {
+    if (!productId || productId.trim() === '') {
+      throw new Error("Invalid product ID");
+    }
+    console.log("🔄 deleteProduct called for ID:", productId);
+    await deleteDoc(doc(db, 'products', productId.trim()));
+    console.log("✅ Product deleted successfully");
+  } catch (error) {
+    console.error("🔥 deleteProduct ERROR:", error);
+    throw error;
+  }
+};
+
 // ORDER & PAYMENT FUNCTIONS
 export const getOrders = async (): Promise<Order[]> => {
     try {

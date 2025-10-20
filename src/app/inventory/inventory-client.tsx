@@ -490,48 +490,69 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
   const [firebaseStatus, setFirebaseStatus] = useState({ connected: true, message: "" });
   const { toast } = useToast();
   
-  // TEMP TEST FOR STEP 2: ADD THIS ENTIRE BLOCK HERE (same indentation as useStates)
-  useEffect(() => {
-    console.log('🧪 Step 2: Starting fetch tests...');
+// TEMP TEST FOR STEP 2: Enhanced errors
+useEffect(() => {
+  console.log('🧪 Step 2: Starting fetch tests...');
 
-    getProducts().then((products) => {
-      console.log('✅ Fetched Products:', products.length, 'items. First one:', products[0] || 'Empty');
-    }).catch((error) => {
-      console.error('❌ Products fetch error:', error);
+  // Products (likely error here)
+  getProducts().then((products) => {
+    console.log('✅ Fetched Products:', products.length, 'items. First one:', products[0] || 'Empty');
+  }).catch((error) => {
+    console.error('❌ Products fetch error - Full details:', {
+      message: error.message || 'No message',
+      code: error.code || 'Unknown',
+      name: error.name || 'Unknown',
+      stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
     });
+  });
 
-    getOrders().then((orders) => {
-      console.log('✅ Fetched Orders:', orders.length, 'items. First one:', orders[0] || 'Empty');
-    }).catch((error) => {
-      console.error('❌ Orders fetch error:', error);
+  // Orders (likely error here)
+  getOrders().then((orders) => {
+    console.log('✅ Fetched Orders:', orders.length, 'items. First one:', orders[0] || 'Empty');
+  }).catch((error) => {
+    console.error('❌ Orders fetch error - Full details:', {
+      message: error.message || 'No message',
+      code: error.code || 'Unknown',
+      name: error.name || 'Unknown',
+      stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
     });
+  });
 
-    getInvoices().then((invoices) => {
-      console.log('✅ Fetched Invoices:', invoices.length, 'items. First one:', invoices[0] || 'Empty');
-    }).catch((error) => {
-      console.error('❌ Invoices fetch error:', error);
+  // Invoices (likely error here, since based on orders)
+  getInvoices().then((invoices) => {
+    console.log('✅ Fetched Invoices:', invoices.length, 'items. First one:', invoices[0] || 'Empty');
+  }).catch((error) => {
+    console.error('❌ Invoices fetch error - Full details:', {
+      message: error.message || 'No message',
+      code: error.code || 'Unknown',
+      name: error.name || 'Unknown',
+      stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
     });
+  });
 
-    getCustomers().then((customers) => {
-      console.log('✅ Fetched Customers:', customers.length, 'items. First one:', customers[0] || 'Empty');
-    }).catch((error) => {
-      console.error('❌ Customers fetch error:', error);
-    });
+  // Customers (already working - keep simple)
+  getCustomers().then((customers) => {
+    console.log('✅ Fetched Customers:', customers.length, 'items. First one:', customers[0] || 'Empty');
+  }).catch((error) => {
+    console.error('❌ Customers fetch error:', error);
+  });
 
-    getSuppliers().then((suppliers) => {
-      console.log('✅ Fetched Suppliers:', suppliers.length, 'items. First one:', suppliers[0] || 'Empty');
-    }).catch((error) => {
-      console.error('❌ Suppliers fetch error:', error);
-    });
+  // Suppliers (already working)
+  getSuppliers().then((suppliers) => {
+    console.log('✅ Fetched Suppliers:', suppliers.length, 'items. First one:', suppliers[0] || 'Empty');
+  }).catch((error) => {
+    console.error('❌ Suppliers fetch error:', error);
+  });
 
-    getPurchases().then((purchases) => {
-      console.log('✅ Fetched Purchases:', purchases.length, 'items. First one:', purchases[0] || 'Empty');
-    }).catch((error) => {
-      console.error('❌ Purchases fetch error:', error);
-    });
+  // Purchases (already working)
+  getPurchases().then((purchases) => {
+    console.log('✅ Fetched Purchases:', purchases.length, 'items. First one:', purchases[0] || 'Empty');
+  }).catch((error) => {
+    console.error('❌ Purchases fetch error:', error);
+  });
 
-    console.log('🧪 Step 2: Fetch tests complete.');
-  }, []);  // Empty array: Runs once on load
+  console.log('🧪 Step 2: Fetch tests complete.');
+}, []);
 
   const fetchProducts = useCallback(async () => {
     try {
