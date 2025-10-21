@@ -54,8 +54,8 @@ export interface Product {
   brand?: string;
   weightPerUnit?: number; // Weight in KG, for Rods & Rings
   historicalData?: { date: string; quantity: number }[];
-  createdAt?: string | Timestamp;  // Added for audit (client ISO or server timestamp)
-  updatedAt?: string | Timestamp;  // Added for audit
+  createdAt?: string | null;  // ISO string from serialized Timestamp (e.g., "2024-01-01T00:00:00.000Z")
+  updatedAt?: string | null;  // ISO string from serialized Timestamp
 }
 
 // Payment (Unchanged)

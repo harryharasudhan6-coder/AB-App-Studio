@@ -193,7 +193,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="reorderPoint" className="text-right">Reorder Point</Label>
               <Input 
-                id="reorderPoint" 
+                id="reorderPoint"
+				name="reorderPoint"				
                 type="number" 
                 value={reorderPoint} 
                 onChange={(e) => setReorderPoint(parseInt(e.target.value) || 0)} 
@@ -438,7 +439,8 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
               <Label htmlFor="edit-reorderPoint" className="text-right">Reorder Point</Label>
               <Input 
                 id="edit-reorderPoint" 
-                type="number" 
+                name="reorderPoint"
+				type="number" 
                 value={editData.reorderPoint || 0} 
                 onChange={(e) => handleChange('reorderPoint', parseInt(e.target.value) || 0)} 
                 className="col-span-3" 
@@ -619,24 +621,39 @@ useEffect(() => {
     }
   };
 
-  const filteredProducts = useMemo(() => {
-    let filtered = products;
+const filteredProducts = useMemo(() => {
+  console.log('🔍 Filter DEBUG: Starting with raw products:', products.length, 'Names:', products.map(p => p.name).join(', '));  // TEMP
 
-    if (filterCategory !== 'all') {
-      filtered = filtered.filter(p => p.category === filterCategory);
-    }
+  let filtered = products;
 
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(lowerSearch) ||
-        p.sku.toLowerCase().includes(lowerSearch) ||
-        (p.brand && p.brand.toLowerCase().includes(lowerSearch))
-      );
-    }
+  // Category filter
+  if (filterCategory !== 'all') {
+    filtered = filtered.filter(product => 
+      (product.category || '').toLowerCase() === filterCategory.toLowerCase()
+    );
+    console.log('🔍 After Category Filter (', filterCategory, '):', filtered.length);  // TEMP
+  }
 
-    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [products, filterCategory, searchTerm]);
+  // Search filter
+  if (searchTerm) {
+    const lowerSearch = searchTerm.toLowerCase();
+    filtered = filtered.filter(product => 
+      product.name?.toLowerCase().includes(lowerSearch) ||
+      product.sku?.toLowerCase().includes(lowerSearch) ||
+      product.category?.toLowerCase().includes(lowerSearch)
+    );
+    console.log('🔍 After Search Filter (', searchTerm, '):', filtered.length);  // TEMP
+  }
+
+  console.log('🔍 Filter DEBUG: Final filtered:', filtered.length, 'Names:', filtered.map(p => p.name).join(', '));  // TEMP
+
+  return filtered.sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;  // Newest first
+  });
+}, [products, filterCategory, searchTerm]);
+
 
   return (
     <>

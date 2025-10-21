@@ -159,24 +159,43 @@ export const deleteCustomer = async (id: string) => {
 
 // PRODUCT FUNCTIONS
 export const getProducts = async (): Promise<Product[]> => {
-    try {
-        // ENHANCED: Added orderBy for consistency (use createdAt if exists; fallback to no order)
-        let q = query(collection(db, 'products'));
-        try {
-            q = query(q, orderBy('createdAt', 'desc'));
-        } catch (e) {
-            console.warn('createdAt field not available; fetching without order');
-        }
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            ...doc.data() 
-        } as Product));
-    } catch (error) {
-        console.error("Error fetching products: ", error);
-        return [];
-    }
+  try {
+    console.log('🔍 Temp: Fetching ALL 69 products (no orderBy limit)');  // TEMP
+    const snapshot = await getDocs(collection(db, 'products'));  // Gets ALL docs
+    let data = snapshot.docs.map(doc => {
+      const rawData = doc.data();
+      // Fallbacks for old products (no createdAt)
+      const fallbackDate = rawData.createdAt ? rawData.createdAt : new Date('2024-01-01T00:00:00Z').toISOString();  // Old date for sorting
+      return {
+        id: doc.id,
+        ...rawData,
+        createdAt: fallbackDate,
+        updatedAt: rawData.updatedAt || new Date().toISOString(),
+        category: rawData.category || 'General',  // Prevents filter issues
+        stock: rawData.stock || 0,
+        salePrice: rawData.salePrice || 0,
+        costPrice: rawData.costPrice || 0,
+        gst: rawData.gst || 0
+      } as Product;
+    });
+
+    console.log('🔍 Raw fetched:', data.length, 'Sample names:', data.slice(0, 5).map(p => p.name));  // TEMP - Check >3
+
+    // Client-side sort: Newest first (old at bottom)
+    data.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+    console.log('🔍 After sort:', data.length, 'Newest:', data[0]?.name, 'Oldest:', data[data.length - 1]?.name);  // TEMP
+    return data;
+  } catch (error) {
+    console.error('❌ Fetch error:', error);
+    return [];
+  }
 };
+
 
 // VITAL FIX: ADDED MISSING addProduct FUNCTION (Your note preserved)
 export const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
