@@ -11,12 +11,8 @@ const nextConfig = {
             },
         ],
     },
-    typescript: {
-        ignoreBuildErrors: true,
-    },
-    eslint: {
-        ignoreDuringBuilds: true,
-    },
+    // We removed the eslint and typescript blocks from here 
+    // to satisfy the new Next.js 15 requirements.
 };
 
 export default nextConfig;
