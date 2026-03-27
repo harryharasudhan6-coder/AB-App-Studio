@@ -1,71 +1,66 @@
 // @/lib/data.ts – Complete Merged File (Your Original + Real-Time Listeners & Enhancements)
 // All your custom logic preserved; added timestamps for sorting/sync, listeners for global real-time updates.
-
 import { db } from './firebase';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  writeBatch, 
-  getDoc, 
-  query, 
-  limit, 
-  runTransaction, 
-  DocumentReference, 
-  updateDoc, 
-  increment, 
-  where, 
-  orderBy, 
-  Transaction,
-  onSnapshot // NEW: For real-time listeners
+import {
+    collection,
+    getDocs,
+    addDoc,
+    doc,
+    setDoc,
+    deleteDoc,
+    writeBatch,
+    getDoc,
+    query,
+    limit,
+    runTransaction,
+    DocumentReference,
+    updateDoc,
+    increment,
+    where,
+    orderBy,
+    Transaction,
+    onSnapshot // NEW: For real-time listeners
 } from 'firebase/firestore';
-import type { 
-  Customer, 
-  Product, 
-  Order, 
-  Payment, 
-  OrderItem, 
-  PaymentAlert, 
-  LowStockAlert, 
-  Supplier, 
-  Purchase, 
-  PurchasePayment, 
-  OrderStatus, 
-  PaymentMode, 
-  CalculationType, 
-  PurchasePaymentTerm 
+import type {
+    Customer,
+    Product,
+    Order,
+    Payment,
+    OrderItem,
+    PaymentAlert,
+    LowStockAlert,
+    Supplier,
+    Purchase,
+    PurchasePayment,
+    OrderStatus,
+    PaymentMode,
+    CalculationType,
+    PurchasePaymentTerm
 } from './types';
 import { differenceInDays, addDays, startOfToday, subMonths } from 'date-fns';
 
 // =============================================================================
 // YOUR ORIGINAL CORE FUNCTIONS (Unchanged, with Minor Enhancements for Timestamps)
 // =============================================================================
-
-// GET ALL DATA - Used only for components that truly need access to multiple data types, e.g., the order dialog.
 export async function getCoreOrderData() {
     const customersPromise = getCustomers();
     const productsPromise = getProducts();
     const ordersPromise = getOrders();
-
     const [customers, products, orders] = await Promise.all([
         customersPromise,
         productsPromise,
         ordersPromise
     ]);
-    
     return { customers, products, orders };
 }
 
 // CUSTOMER FUNCTIONS
 export const getCustomers = async (): Promise<Customer[]> => {
     try {
-        const snapshot = await getDocs(query(collection(db, 'customers'), orderBy('name'))); // Your original orderBy kept
-        return snapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            ...doc.data() 
+        const snapshot = await getDocs(query(collection(db, 'customers'), orderBy('name')));
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
         } as Customer));
     } catch (error) {
         console.error("Error fetching customers: ", error);
@@ -85,7 +80,7 @@ export const getCustomerById = async (id: string): Promise<Customer | null> => {
         console.error("Error fetching customer by ID: ", error);
         return null;
     }
-}
+};
 
 export const getCustomerBalance = async (customerId: string): Promise<number> => {
     if (!customerId) return 0;
@@ -95,49 +90,32 @@ export const getCustomerBalance = async (customerId: string): Promise<number> =>
             where('customerId', '==', customerId)
         );
         const snapshot = await getDocs(ordersQuery);
-        
         if (snapshot.empty) return 0;
 
         let orders = snapshot.docs.map(doc => doc.data() as Order);
-        
         orders.sort((a, b) => {
-            try {
-                // Handle both string and Firestore Timestamp dates
-                const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
-                const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
-                
-                if (isNaN(dateA)) return -1;
-                if (isNaN(dateB)) return 1;
-
-                return dateA - dateB;
-            } catch(e) {
-                console.error("Error parsing dates for sorting:", a.orderDate, b.orderDate);
-                return 0;
-            }
+            const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+            const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+            if (isNaN(dateA)) return -1;
+            if (isNaN(dateB)) return 1;
+            return dateA - dateB;
         });
 
         const latestOrder = orders[orders.length - 1];
-
-        // If the latest order is an opening balance order, its balance due is the correct opening balance.
-        if (latestOrder.isOpeningBalance) {
-            return latestOrder.balanceDue ?? 0;
-        }
-
-        return latestOrder.balanceDue ?? 0;
-
+        return latestOrder.isOpeningBalance ? (latestOrder.balanceDue ?? 0) : (latestOrder.balanceDue ?? 0);
     } catch (error) {
         console.error(`Error fetching balance for customer ${customerId}:`, error);
         return 0;
     }
-}
+};
 
 export const addCustomer = async (customerData: Omit<Customer, 'id' | 'transactionHistory' | 'orders'>): Promise<Customer> => {
-    const now = new Date().toISOString(); // NEW: Add timestamps
+    const now = new Date().toISOString();
     const newCustomer: Omit<Customer, 'id'> = {
         ...customerData,
-        transactionHistory: { totalSpent: 0, lastPurchaseDate: now.split('T')[0] }, // Updated to use now
-        createdAt: now, // NEW: For sorting/sync
-        updatedAt: now // NEW: For sorting/sync
+        transactionHistory: { totalSpent: 0, lastPurchaseDate: now.split('T')[0] },
+        createdAt: now,
+        updatedAt: now
     };
     const docRef = await addDoc(collection(db, 'customers'), newCustomer);
     return { id: docRef.id, ...newCustomer, orders: [] };
@@ -146,7 +124,7 @@ export const addCustomer = async (customerData: Omit<Customer, 'id' | 'transacti
 export const updateCustomer = async (customerData: Partial<Customer>): Promise<void> => {
     const { id, ...dataToUpdate } = customerData;
     if (!id) throw new Error("Customer ID is required to update.");
-    const updatesWithTimestamp = { // NEW: Add updatedAt
+    const updatesWithTimestamp = {
         ...dataToUpdate,
         updatedAt: new Date().toISOString()
     };
@@ -159,167 +137,88 @@ export const deleteCustomer = async (id: string) => {
 
 // PRODUCT FUNCTIONS
 export const getProducts = async (): Promise<Product[]> => {
-  try {
-    console.log('🔍 Temp: Fetching ALL 69 products (no orderBy limit)');  // TEMP
-    const snapshot = await getDocs(collection(db, 'products'));  // Gets ALL docs
-    let data = snapshot.docs.map(doc => {
-      const rawData = doc.data();
-      // Fallbacks for old products (no createdAt)
-      const fallbackDate = rawData.createdAt ? rawData.createdAt : new Date('2024-01-01T00:00:00Z').toISOString();  // Old date for sorting
-      return {
-        id: doc.id,
-        ...rawData,
-        createdAt: fallbackDate,
-        updatedAt: rawData.updatedAt || new Date().toISOString(),
-        category: rawData.category || 'General',  // Prevents filter issues
-        stock: rawData.stock || 0,
-        salePrice: rawData.salePrice || 0,
-        costPrice: rawData.costPrice || 0,
-        gst: rawData.gst || 0
-      } as Product;
-    });
-
-    console.log('🔍 Raw fetched:', data.length, 'Sample names:', data.slice(0, 5).map(p => p.name));  // TEMP - Check >3
-
-    // Client-side sort: Newest first (old at bottom)
-    data.sort((a, b) => {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      return dateB - dateA;
-    });
-
-    console.log('🔍 After sort:', data.length, 'Newest:', data[0]?.name, 'Oldest:', data[data.length - 1]?.name);  // TEMP
-    return data;
-  } catch (error) {
-    console.error('❌ Fetch error:', error);
-    return [];
-  }
-};
-
-
-// VITAL FIX: ADDED MISSING addProduct FUNCTION (Your note preserved)
-export const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
-    console.log("🔄 addProduct called with data:", productData);
     try {
-        const now = new Date().toISOString(); // NEW: Timestamps
-        const dataWithTimestamps = { // NEW: Add for sync
-            ...productData,
-            createdAt: now,
-            updatedAt: now
-        };
-        const docRef = await addDoc(collection(db, 'products'), dataWithTimestamps);
-        const newProduct: Product = { id: docRef.id, ...dataWithTimestamps };
-        console.log("✅ Product added successfully with ID:", docRef.id);
-        return newProduct;
+        const snapshot = await getDocs(collection(db, 'products'));
+        let data = snapshot.docs.map(doc => {
+            const rawData = doc.data();
+            const fallbackDate = rawData.createdAt || new Date('2024-01-01T00:00:00Z').toISOString();
+            return {
+                id: doc.id,
+                ...rawData,
+                createdAt: fallbackDate,
+                updatedAt: rawData.updatedAt || new Date().toISOString(),
+                category: rawData.category || 'General',
+                stock: rawData.stock || 0,
+                salePrice: rawData.salePrice || 0,
+                costPrice: rawData.costPrice || 0,
+                gst: rawData.gst || 0
+            } as Product;
+        });
+
+        data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return data;
     } catch (error) {
-        console.error("🔥 addProduct ERROR:", error);
-        throw error;
+        console.error('Fetch error:', error);
+        return [];
     }
 };
-// END OF VITAL FIX
+
+export const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
+    const now = new Date().toISOString();
+    const dataWithTimestamps = { ...productData, createdAt: now, updatedAt: now };
+    const docRef = await addDoc(collection(db, 'products'), dataWithTimestamps);
+    return { id: docRef.id, ...dataWithTimestamps };
+};
 
 export const updateProduct = async (productId: string, updates: Partial<Product>): Promise<void> => {
-    try {
-        if (!productId || productId.trim() === '') {
-            throw new Error("Invalid product ID");
-        }
-
-        console.log("🔄 updateProduct called:", { productId, updates });
-        
-        // Clean the updates object - remove undefined values
-        const cleanUpdates = Object.fromEntries(
-            Object.entries(updates).filter(([_, value]) => value !== undefined && value !== null)
-        );
-
-        console.log("🧹 Cleaned updates:", cleanUpdates);
-
-        const updatesWithTimestamp = { // NEW: Add updatedAt
-            ...cleanUpdates,
-            updatedAt: new Date().toISOString()
-        };
-
-        const productRef = doc(db, 'products', productId.trim());
-        console.log("📄 Document reference path:", productRef.path);
-        
-        await setDoc(productRef, updatesWithTimestamp, { merge: true });
-        
-        console.log("✅ updateProduct completed successfully");
-        
-    } catch (error) {
-        console.error("🔥 updateProduct ERROR:", {
-            error: error,
-            productId: productId,
-            updates: updates,
-            errorName: error instanceof Error ? error.name : 'Unknown',
-            errorMessage: error instanceof Error ? error.message : 'Unknown',
-            timestamp: new Date().toISOString()
-        });
-        throw error;
-    }
+    if (!productId?.trim()) throw new Error("Invalid product ID");
+    const cleanUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([_, v]) => v !== undefined && v !== null)
+    );
+    const updatesWithTimestamp = { ...cleanUpdates, updatedAt: new Date().toISOString() };
+    await setDoc(doc(db, 'products', productId.trim()), updatesWithTimestamp, { merge: true });
 };
 
 export const deleteProduct = async (productId: string): Promise<void> => {
-  try {
-    if (!productId || productId.trim() === '') {
-      throw new Error("Invalid product ID");
-    }
-    console.log("🔄 deleteProduct called for ID:", productId);
+    if (!productId?.trim()) throw new Error("Invalid product ID");
     await deleteDoc(doc(db, 'products', productId.trim()));
-    console.log("✅ Product deleted successfully");
-  } catch (error) {
-    console.error("🔥 deleteProduct ERROR:", error);
-    throw error;
-  }
 };
 
 // ORDER & PAYMENT FUNCTIONS
 export const getOrders = async (): Promise<Order[]> => {
     try {
-        // *** CRITICAL CHECK: Ensure DB is defined before proceeding ***
         if (!db) {
-            console.error("CRITICAL ERROR: Firestore 'db' instance is undefined. Firebase initialization failed.");
+            console.error("CRITICAL ERROR: Firestore 'db' instance is undefined.");
             return [];
         }
 
-        // The collection name is 'order' (singular), as confirmed. 
-        // Query is simplified to ensure data retrieval regardless of indexing issues.
-        const ordersCollectionRef = collection(db, 'orders'); 
-        
-        let q = query(ordersCollectionRef); // Base query
-        // ENHANCED: Add orderBy for consistency (orderDate desc, as per your schema)
+        let q = query(collection(db, 'orders'));
         try {
             q = query(q, orderBy('orderDate', 'desc'));
         } catch (e) {
-            console.warn('orderDate field not available for ordering; fetching without');
+            console.warn('orderDate not available for ordering');
         }
-        
-        let snapshot = await getDocs(q);
-        
-        if (snapshot.docs.length === 0) {
-             // This console message indicates the query ran but found no documents.
-             console.log("No documents found in the 'order' collection.");
-        }
-        
-        // This mapping correctly extracts the data and the document ID (for payment recording)
-        return snapshot.docs.map(doc => ({ 
-            ...doc.data(), 
-            _id: doc.id, // This is essential for the payment/delete functions to work later  
-        } as Order));
 
-    } catch (error) { 
-        console.error("CRITICAL ERROR FETCHING ORDERS (Final Check Failure): ", error);
+        const snapshot = await getDocs(q);
+
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                _id: doc.id,
+                id: (data as any).id || doc.id,
+                ...data
+            } as Order;
+        });
+    } catch (error) {
+        console.error("Error fetching orders:", error);
         return [];
     }
 };
-
-// NOTE: Your useInvoiceData hook – this seems React-specific; integrate in components, not here.
-// const useInvoiceData = () => { ... }; // Commented out; add to a hook file if needed.
 
 export const getOrdersByCustomerId = async (customerId: string): Promise<Order[]> => {
     if (!customerId) return [];
     try {
         let q = query(collection(db, 'orders'), where('customerId', '==', customerId));
-        // ENHANCED: Add orderBy if possible
         try {
             q = query(q, orderBy('orderDate', 'desc'));
         } catch (e) {
@@ -333,37 +232,31 @@ export const getOrdersByCustomerId = async (customerId: string): Promise<Order[]
     }
 };
 
-// ✅ Add this new function just below getOrdersByCustomerId (Your original)
 export const getInvoices = async (): Promise<Order[]> => {
-  try {
-    if (!db) {
-      console.error("Firestore 'db' instance is undefined.");
-      return [];
-    }
-
-    // Firestore only has 'orders', so we use that collection
-    let invoicesRef = collection(db, "orders");
-    let q = query(invoicesRef);
-    // ENHANCED: Add orderBy for invoices (use orderDate desc)
     try {
-        q = query(q, orderBy('orderDate', 'desc'));
-    } catch (e) {
-        console.warn('orderDate not available for invoice ordering');
-    }
-    const snapshot = await getDocs(q);
+        if (!db) return [];
 
-    if (snapshot.empty) {
-      console.log("No documents found in the 'orders' collection (used for invoices).");
-    }
+        let q = query(collection(db, 'orders'));
+        try {
+            q = query(q, orderBy('orderDate', 'desc'));
+        } catch (e) {
+            console.warn('orderDate not available for invoice ordering');
+        }
 
-    return snapshot.docs.map(doc => ({
-      _id: doc.id,
-      ...doc.data(),
-    } as Order));
-  } catch (error) {
-    console.error("Error fetching invoices:", error);
-    return [];
-  }
+        const snapshot = await getDocs(q);
+
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                _id: doc.id,
+                id: (data as any).id || doc.id,
+                ...data
+            } as Order;
+        });
+    } catch (error) {
+        console.error("Error fetching invoices:", error);
+        return [];
+    }
 };
 
 async function getNextId(transaction: Transaction, counterName: string, prefix: string): Promise<string> {
@@ -402,15 +295,15 @@ const cleanDataForFirebase = (data: any): any => {
 async function runBalanceChainUpdate(customerId: string, workload: (orders: Order[]) => Order[]) {
     // Read outside the transaction
     const ordersQuery = query(collection(db, 'orders'), where('customerId', '==', customerId));
-    
+
     try {
         await runTransaction(db, async (transaction) => {
             const customerOrdersSnap = await getDocs(ordersQuery);
-            let orders = customerOrdersSnap.docs.map(d => ({id: d.id, ...d.data()}) as Order);
-    
+            let orders = customerOrdersSnap.docs.map(d => ({ id: d.id, ...d.data() }) as Order);
+
             // Apply the specific operation (add, update, delete, pay) in memory
             orders = workload(orders);
-    
+
             // Sort by date to ensure correct calculation sequence
             orders.sort((a, b) => {
                 try {
@@ -419,7 +312,7 @@ async function runBalanceChainUpdate(customerId: string, workload: (orders: Orde
                     if (isNaN(dateA)) return -1;
                     if (isNaN(dateB)) return 1;
                     return dateA - dateB;
-                } catch(e) {
+                } catch (e) {
                     console.error("Error parsing dates for sorting:", a.orderDate, b.orderDate);
                     return 0;
                 }
@@ -438,20 +331,22 @@ async function runBalanceChainUpdate(customerId: string, workload: (orders: Orde
                     // This is the key change: trust the incoming value for the first order if it's an OB.
                     runningPreviousBalance = order.previousBalance;
                 } else if (i > 0) {
-                     runningPreviousBalance = orders[i - 1].balanceDue ?? 0;
+                    runningPreviousBalance = orders[i - 1].balanceDue ?? 0;
                 } else {
-                     runningPreviousBalance = 0;
+                    runningPreviousBalance = 0;
                 }
-                
+
                 order.previousBalance = runningPreviousBalance;
-                
-                const currentBillValue = order.total - (order.discount || 0) + (order.deliveryFees || 0);
+
+                // If the order is Canceled or Deleted, its financial value should be 0 in the rolling balance.
+                const isInvalid = order.status === 'Canceled' || order.status === 'Deleted' || (order as any)._isDeleted;
+                const currentBillValue = isInvalid ? 0 : (order.total - (order.discount || 0) + (order.deliveryFees || 0));
                 order.grandTotal = currentBillValue + order.previousBalance;
-                
+
                 const totalPaid = (order.payments || []).reduce((sum, p) => sum + p.amount, 0);
                 order.balanceDue = order.grandTotal - totalPaid;
-                
-                if (order.status !== 'Canceled') {
+
+                if (order.status !== 'Canceled' && order.status !== 'Deleted') {
                     order.status = order.balanceDue <= 0 ? 'Fulfilled' : (totalPaid > 0 ? 'Part Payment' : 'Pending');
                 }
 
@@ -471,22 +366,22 @@ async function runBalanceChainUpdate(customerId: string, workload: (orders: Orde
 
 export const addOrder = async (orderData: Omit<Order, 'id' | 'customerName'>): Promise<Order> => {
     const now = new Date().toISOString(); // NEW: For timestamps
-    let finalNewOrder : Order | null = null;
-    
-    await runTransaction(db, async(transaction) => {
+    let finalNewOrder: Order | null = null;
+
+    await runTransaction(db, async (transaction) => {
         const customerRef = doc(db, 'customers', orderData.customerId);
         const customerSnap = await transaction.get(customerRef);
         if (!customerSnap.exists()) throw new Error("Customer not found");
-        
+
         const customerName = customerSnap.data()?.name;
-        
+
         const newOrderId = await getNextId(transaction, 'orderCounter', 'ORD');
 
         let newOrder: Order = {
             ...orderData,
             id: newOrderId!,
             customerName: customerName,
-            balanceDue: 0, 
+            balanceDue: 0,
             grandTotal: 0,
             status: 'Pending',
             createdAt: now, // NEW: Timestamp
@@ -511,7 +406,7 @@ export const addOrder = async (orderData: Omit<Order, 'id' | 'customerName'>): P
                 'transactionHistory.lastPurchaseDate': newOrder.orderDate
             });
         }
-        
+
         for (const item of newOrder.items) {
             if (item.productId !== 'OPENING_BALANCE') {
                 const productRef = doc(db, "products", item.productId);
@@ -519,7 +414,7 @@ export const addOrder = async (orderData: Omit<Order, 'id' | 'customerName'>): P
             }
         }
     });
-    
+
     if (!finalNewOrder) throw new Error("Failed to create the new order.");
     return finalNewOrder;
 };
@@ -535,7 +430,7 @@ export const updateOrder = async (orderData: Order): Promise<void> => {
     await runTransaction(db, async (transaction) => {
         // Restore stock and customer balance from original order
         for (const item of originalOrder.items) {
-            if(item.productId !== 'OPENING_BALANCE') {
+            if (item.productId !== 'OPENING_BALANCE') {
                 transaction.update(doc(db, "products", item.productId), { stock: increment(item.quantity) });
             }
         }
@@ -548,7 +443,7 @@ export const updateOrder = async (orderData: Order): Promise<void> => {
         orderData.isOpeningBalance = orderData.items.some(item => item.productName === 'Opening Balance');
         orderData.updatedAt = new Date().toISOString(); // NEW: Timestamp on update
         for (const item of orderData.items) {
-            if(item.productId !== 'OPENING_BALANCE') {
+            if (item.productId !== 'OPENING_BALANCE') {
                 transaction.update(doc(db, "products", item.productId), { stock: increment(-item.quantity) });
             }
         }
@@ -556,9 +451,9 @@ export const updateOrder = async (orderData: Order): Promise<void> => {
             const newNetValue = orderData.total - (orderData.discount || 0) + (orderData.deliveryFees || 0);
             transaction.update(doc(db, "customers", orderData.customerId), { 'transactionHistory.totalSpent': increment(newNetValue) });
         }
-        
+
         // Recalculate the entire balance chain with the updated order
-        await runBalanceChainUpdate(orderData.customerId, (orders) => 
+        await runBalanceChainUpdate(orderData.customerId, (orders) =>
             orders.map(o => o.id === orderData.id ? orderData : o)
         );
     });
@@ -566,74 +461,85 @@ export const updateOrder = async (orderData: Order): Promise<void> => {
 
 export const deleteOrder = async (orderToDelete: Order): Promise<void> => {
     if (!orderToDelete.id) throw new Error("Order ID is required for deletion.");
-    
-     await runTransaction(db, async (transaction) => {
-        
-        // Recalculate balance chain *without* the deleted order
-        await runBalanceChainUpdate(orderToDelete.customerId, (orders) => 
+
+    await runTransaction(db, async (transaction) => {
+        const orderRef = doc(db, "orders", orderToDelete.id);
+
+        // 1. RECALCULATE BALANCE CHAIN (exclude this order)
+        await runBalanceChainUpdate(orderToDelete.customerId, (orders) =>
             orders.filter(o => o.id !== orderToDelete.id)
         );
 
-        // Then, delete the document itself
-        transaction.delete(doc(db, "orders", orderToDelete.id));
-
-        // Restore stock and customer balance
+        // 2. RESTORE STOCK (same as before)
         for (const item of orderToDelete.items) {
-             if(item.productId !== 'OPENING_BALANCE') {
-                transaction.update(doc(db, "products", item.productId), { stock: increment(item.quantity) });
+            if (item.productId !== 'OPENING_BALANCE') {
+                transaction.update(doc(db, "products", item.productId), {
+                    stock: increment(item.quantity)
+                });
             }
         }
+
+        // 3. REVERSE CUSTOMER SPEND (same as before)
         if (!orderToDelete.isOpeningBalance) {
             const netValue = orderToDelete.total - (orderToDelete.discount || 0) + (orderToDelete.deliveryFees || 0);
-            transaction.update(doc(db, "customers", orderToDelete.customerId), { 'transactionHistory.totalSpent': increment(-netValue) });
+            transaction.update(doc(db, "customers", orderToDelete.customerId), {
+                'transactionHistory.totalSpent': increment(-netValue)
+            });
         }
+
+        // 4. SOFT DELETE: MARK AS DELETED (DO NOT DELETE DOC)
+        transaction.update(orderRef, {
+            status: 'Deleted',
+            deletedAt: new Date().toISOString(),
+            deletedBy: 'admin', // Replace with current user if auth exists
+            _isDeleted: true // For easy querying
+        });
     });
 };
 
 export const addPaymentToOrder = async (
-  orderId: string,
-  payment: Omit<Payment, 'id'>
+    customerId: string,
+    orderPrettyId: string,  // This is ORD-0040, ORD-0041, etc.
+    payment: Omit<Payment, 'id'>
 ): Promise<Payment> => {
-  try {
-    let customerId = '';
-
-    const orderSnap = await getDoc(doc(db, 'orders', orderId));
-    if (orderSnap.exists()) {
-      customerId = orderSnap.data().customerId;
-    } else {
-      throw new Error(`Order ${orderId} not found.`);
-    }
-
-    if (!customerId) {
-      throw new Error(`Could not find a customer for order ${orderId}.`);
-    }
-
-    let newPayment: Payment | null = null;
-
-    await runBalanceChainUpdate(customerId, (orders) => {
-      const orderToPay = orders.find((o) => o.id === orderId);
-
-      if (!orderToPay)
-        throw new Error(
-          'Could not find order to apply payment to during transaction.'
+    try {
+        // Step 1: Find the actual Firestore document using the pretty 'id' field
+        const q = query(
+            collection(db, 'orders'),
+            where('id', '==', orderPrettyId)
         );
+        const snapshot = await getDocs(q);
 
-      const existingPayments: Payment[] = orderToPay.payments || [];
-      const paymentId = `${orderId}-PAY-${String(
-        existingPayments.length + 1
-      ).padStart(2, '0')}`;
-      newPayment = { ...payment, id: paymentId };
+        if (snapshot.empty) {
+            throw new Error(`Order with id ${orderPrettyId} not found in database`);
+        }
 
-      orderToPay.payments = [...existingPayments, newPayment];
+        const orderDoc = snapshot.docs[0];
+        const orderData = orderDoc.data() as Order;
+        const realOrderId = orderDoc.id; // This is the real Firestore doc ID
 
-      return orders;
-    });
+        // Step 2: Proceed with balance chain update using the real document
+        let newPayment: Payment | null = null;
 
-    return newPayment!;
-  } catch (error) {
-    console.error('Error adding payment:', error);
-    throw error;
-  }
+        await runBalanceChainUpdate(customerId, (orders) => {
+            const orderToUpdate = orders.find(o => o.id === orderPrettyId);
+            if (!orderToUpdate) throw new Error('Order not found in customer chain');
+
+            const payments = orderToUpdate.payments || [];
+            const paymentId = `${orderPrettyId}-PAY-${String(payments.length + 1).padStart(2, '0')}`;
+
+            newPayment = { ...payment, id: paymentId };
+            orderToUpdate.payments = [...payments, newPayment];
+
+            return orders;
+        });
+
+        return newPayment!;
+
+    } catch (error) {
+        console.error('Error adding payment:', error);
+        throw error;
+    }
 };
 
 interface BulkPaymentData {
@@ -655,7 +561,7 @@ export const addBulkPayment = async (data: BulkPaymentData): Promise<void> => {
             if (orderToUpdate) {
                 const existingPayments: Payment[] = orderToUpdate.payments || [];
                 const paymentId = `${allocation.orderId}-PAY-${String(existingPayments.length + 1).padStart(2, '0')}`;
-                
+
                 const newPayment: Payment = {
                     id: paymentId,
                     amount: allocation.amount,
@@ -666,11 +572,11 @@ export const addBulkPayment = async (data: BulkPaymentData): Promise<void> => {
 
                 orderToUpdate.payments = [...existingPayments, newPayment];
             } else {
-                 // This case should ideally be handled, but for now we log it.
-                 console.warn(`Could not find order ${allocation.orderId} during bulk payment application.`);
+                // This case should ideally be handled, but for now we log it.
+                console.warn(`Could not find order ${allocation.orderId} during bulk payment application.`);
             }
         }
-        
+
         // Return the modified list of all orders for the customer
         return Array.from(ordersMap.values());
     });
@@ -748,14 +654,14 @@ export const addPurchase = async (purchaseData: Omit<Purchase, 'id' | 'supplierN
 
         const purchaseId = await getNextId(transaction, 'purchaseCounter', 'PUR');
 
-        newPurchaseWithId = { 
-            ...purchaseData, 
-            supplierName: supplierSnap.data()?.name, 
+        newPurchaseWithId = {
+            ...purchaseData,
+            supplierName: supplierSnap.data()?.name,
             id: purchaseId,
             createdAt: now, // NEW
             updatedAt: now // NEW
         };
-        
+
         if (newPurchaseWithId.payments && newPurchaseWithId.payments.length > 0) {
             newPurchaseWithId.payments = newPurchaseWithId.payments.map((p, i) => ({
                 ...p,
@@ -802,7 +708,7 @@ export const addPaymentToPurchase = async (purchaseId: string, payment: Omit<Pur
                 updatedAt: updatedPurchase.updatedAt // Include in update
             });
         });
-    } catch(e) {
+    } catch (e) {
         console.error("Add payment to purchase transaction failed:", e);
         if (e instanceof Error) throw new Error(`A database error occurred: ${e.message}`);
         throw new Error("An unknown database error occurred during the transaction.");
@@ -817,7 +723,7 @@ export const getDashboardData = async () => {
     const productsPromise = getProducts();
 
     const [orders, customers, products] = await Promise.all([ordersPromise, customersPromise, productsPromise]);
-    
+
     const today = startOfToday();
 
     // Basic Dashboard Stats
@@ -834,18 +740,18 @@ export const getDashboardData = async () => {
 
 
     const totalCustomers = customers.length;
-    
+
     const itemsInStock = products
         .filter(p => p.name !== 'Outstanding Balance')
         .reduce((sum, product) => sum + product.stock, 0);
-        
+
     const ordersPlaced = orders.filter(o => o.status !== 'Canceled').length;
-    
+
     // Alerts
     const upcomingDateLimit = addDays(today, 7);
     const paymentAlerts = orders
-        .filter(order => 
-            order.dueDate && 
+        .filter(order =>
+            order.dueDate &&
             (order.balanceDue ?? 0) > 0
         )
         .map(order => {
@@ -860,8 +766,8 @@ export const getDashboardData = async () => {
                 days: days
             };
         })
-        .filter(alert => 
-            alert.isOverdue || 
+        .filter(alert =>
+            alert.isOverdue ||
             (new Date(alert.dueDate) <= upcomingDateLimit)
         )
         .sort((a, b) => a.days - b.days);
@@ -874,7 +780,7 @@ export const getDashboardData = async () => {
             stock: p.stock,
             reorderPoint: p.reorderPoint!
         }))
-        .sort((a,b) => a.stock - b.stock);
+        .sort((a, b) => a.stock - b.stock);
 
     // BI Report Data: Profitability & Top Products
     const monthlyData: Record<string, { revenue: number, profit: number }> = {};
@@ -885,19 +791,19 @@ export const getDashboardData = async () => {
         if (!monthlyData[month]) {
             monthlyData[month] = { revenue: 0, profit: 0 };
         }
-        
+
         order.items.forEach(item => {
-            if(item.productName === 'Outstanding Balance' || item.productName === 'Opening Balance') return;
+            if (item.productName === 'Outstanding Balance' || item.productName === 'Opening Balance') return;
 
             const revenue = item.price * item.quantity;
             const cost = item.cost * item.quantity;
             const profit = revenue - cost;
-            
+
             monthlyData[month].revenue += revenue;
             monthlyData[month].profit += profit;
-            
+
             if (!productPerformance[item.productId]) {
-                 productPerformance[item.productId] = { productId: item.productId, productName: item.productName, unitsSold: 0, totalRevenue: 0, estimatedProfit: 0 };
+                productPerformance[item.productId] = { productId: item.productId, productName: item.productName, unitsSold: 0, totalRevenue: 0, estimatedProfit: 0 };
             }
             productPerformance[item.productId].unitsSold += item.quantity;
             productPerformance[item.productId].totalRevenue += revenue;
@@ -906,7 +812,7 @@ export const getDashboardData = async () => {
     });
 
     const profitabilityChartData = Object.entries(monthlyData).map(([month, data]) => ({ month, revenue: data.revenue, profit: data.profit }));
-    
+
     // BI Report Data: Inventory Intelligence
     const oneYearAgo = subMonths(today, 12);
     const sixMonthsAgo = subMonths(today, 6);
@@ -932,7 +838,7 @@ export const getDashboardData = async () => {
             stock: p.stock,
             cost: p.cost
         }));
-    
+
     const stockoutProducts = products
         .filter(p => p.stock === 0 && p.name !== 'Outstanding Balance')
         .map(p => {
@@ -943,7 +849,7 @@ export const getDashboardData = async () => {
             const totalDays = salesHistory.length > 0
                 ? differenceInDays(today, new Date(orders.find(o => o.items.some(i => i.productId === p.id))!.orderDate))
                 : 0;
-            
+
             const totalUnitsSold = salesHistory.reduce((sum, i) => sum + i.quantity, 0);
             const avgDailySales = totalDays > 0 ? totalUnitsSold / totalDays : 0;
             const potentialLostRevenue = avgDailySales * p.price;
@@ -963,7 +869,7 @@ export const getDashboardData = async () => {
         totalCustomers,
         itemsInStock,
         ordersPlaced,
-        recentOrders: orders.sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()).slice(0, 5),
+        recentOrders: orders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()).slice(0, 5),
         paymentAlerts,
         lowStockAlerts,
         revenueChartData: profitabilityChartData, // Added for mobile view
@@ -979,10 +885,15 @@ export const getDashboardData = async () => {
 // This function will be called from a server-side context to reset the DB
 export const resetDatabaseForFreshStart = async () => {
     const collectionsToDelete = ['customers', 'orders', 'counters', 'suppliers', 'purchases'];
-    
+
     try {
         for (const collectionName of collectionsToDelete) {
-            const q = query(collection(db, collectionName));
+            const q = query(
+                collection(db, 'orders'),
+                where('status', '!=', 'Deleted'),
+                where('_isDeleted', '!=', true),
+                orderBy('orderDate', 'desc')
+            );
             const snapshot = await getDocs(q);
             if (snapshot.empty) {
                 console.log(`No documents to delete in ${collectionName}.`);
@@ -1009,7 +920,7 @@ export const resetAllPayments = async () => {
     try {
         const ordersQuery = query(collection(db, 'orders'));
         const snapshot = await getDocs(ordersQuery);
-        
+
         if (snapshot.empty) {
             console.log("No orders found to reset payments.");
             return;
@@ -1025,7 +936,7 @@ export const resetAllPayments = async () => {
                 }));
             });
         }
-        
+
         console.log(`Reset payments for all orders across ${customerIds.size} customers.`);
 
     } catch (error) {
@@ -1034,38 +945,81 @@ export const resetAllPayments = async () => {
     }
 };
 
-// New function to add to data.ts (Your original)
 export const deletePaymentFromOrder = async (
-  customerId: string,
-  orderId: string,
-  paymentId: string
+    customerId: string,
+    orderId: string,
+    paymentId: string
 ) => {
-  console.log(`Attempting to delete payment ${paymentId} from order ${orderId} for customer ${customerId}`);
+    console.log(`Attempting to delete payment ${paymentId} from order ${orderId} for customer ${customerId}`);
 
-  const updateChain = (orders: Order[]) => {
-    return orders.map(order => {
-      if (order.id === orderId) {
-        const updatedPayments = order.payments.filter(p => p.id !== paymentId);
-        return {
-          ...order,
-          payments: updatedPayments,
-          updatedAt: new Date().toISOString() // NEW: Timestamp on update
-        } as Order;
-      }
-      return order;
-    });
-  };
+    const updateChain = (orders: Order[]) => {
+        return orders.map(order => {
+            if (order.id === orderId) {
+                const updatedPayments = (order.payments || []).filter(p => p.id !== paymentId);
+                return {
+                    ...order,
+                    payments: updatedPayments,
+                    updatedAt: new Date().toISOString() // NEW: Timestamp on update
+                } as Order;
+            }
+            return order;
+        });
+    };
 
-  try {
-    const updatedOrders = await runBalanceChainUpdate(customerId, updateChain);
-    console.log(`Successfully deleted payment ${paymentId} from order ${orderId}.`);
-    // Optionally return the updated order for UI refresh
-    const updatedOrder = updatedOrders.find(o => o.id === orderId);
-    return { success: true, updatedOrder };
-  } catch (error) {
-    console.error("Error deleting payment from order:", error);
-    throw new Error("Failed to delete payment from order.");
-  }
+    try {
+        await runBalanceChainUpdate(customerId, updateChain);
+        console.log(`Successfully deleted payment ${paymentId} from order ${orderId}.`);
+
+        // Fetch the updated order from Firestore
+        const q = query(
+            collection(db, 'orders'),
+            where('id', '==', orderId)
+        );
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+            const updatedOrder = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Order;
+            return { success: true, updatedOrder };
+        }
+
+        return { success: true, updatedOrder: undefined };
+    } catch (error) {
+        console.error("Error deleting payment from order:", error);
+        throw new Error("Failed to delete payment from order.");
+    }
+};
+
+// Permanently delete an order (hard delete from database)
+// This should only be used for orders that are already soft-deleted
+export const permanentlyDeleteOrder = async (orderId: string): Promise<void> => {
+    try {
+        // Find the order document by the pretty ID (ORD-XXXX)
+        const q = query(
+            collection(db, 'orders'),
+            where('id', '==', orderId)
+        );
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            throw new Error(`Order with id ${orderId} not found in database`);
+        }
+
+        const orderDoc = snapshot.docs[0];
+        const orderData = orderDoc.data() as Order;
+
+        // Safety check: only allow permanent deletion of already deleted orders
+        if (orderData.status !== 'Deleted' || !orderData._isDeleted) {
+            throw new Error('Can only permanently delete orders that are already soft-deleted');
+        }
+
+        // Permanently delete the document from Firestore
+        await deleteDoc(doc(db, 'orders', orderDoc.id));
+
+        console.log(`Successfully permanently deleted order ${orderId}`);
+    } catch (error) {
+        console.error("Error permanently deleting order:", error);
+        throw error;
+    }
 };
 
 // =============================================================================
@@ -1075,116 +1029,116 @@ export const deletePaymentFromOrder = async (
 // E.g., listenToOrders(callback) – callback fires on add/edit/delete.
 
 export const listenToCustomers = (callback: (customers: Customer[]) => void): (() => void) => {
-  let q = query(collection(db, 'customers'), orderBy('name')); // Your preferred order
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const customers = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      } as Customer));
-      callback(customers);
-    },
-    (error) => {
-      console.error('Customers listener error:', error);
-      callback([]);
-    }
-  );
-  return unsubscribe;
+    let q = query(collection(db, 'customers'), orderBy('name')); // Your preferred order
+    const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+            const customers = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data()
+            } as Customer));
+            callback(customers);
+        },
+        (error) => {
+            console.error('Customers listener error:', error);
+            callback([]);
+        }
+    );
+    return unsubscribe;
 };
 
 export const listenToProducts = (callback: (products: Product[]) => void): (() => void) => {
-  let q = query(collection(db, 'products'));
-  try {
-    q = query(q, orderBy('createdAt', 'desc'));
-  } catch (e) {
-    q = query(collection(db, 'products')); // Fallback
-  }
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const products = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      } as Product));
-      callback(products);
-    },
-    (error) => {
-      console.error('Products listener error:', error);
-      callback([]);
+    let q = query(collection(db, 'products'));
+    try {
+        q = query(q, orderBy('createdAt', 'desc'));
+    } catch (e) {
+        q = query(collection(db, 'products')); // Fallback
     }
-  );
-  return unsubscribe;
+    const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+            const products = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data()
+            } as Product));
+            callback(products);
+        },
+        (error) => {
+            console.error('Products listener error:', error);
+            callback([]);
+        }
+    );
+    return unsubscribe;
 };
 
 export const listenToOrders = (callback: (orders: Order[]) => void): (() => void) => {
-  let q = query(collection(db, 'orders'));
-  try {
-    q = query(q, orderBy('orderDate', 'desc')); // Your schema
-  } catch (e) {
-    q = query(collection(db, 'orders')); // Fallback
-  }
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const orders = snapshot.docs.map((doc) => ({
-        ...doc.data(),
-        _id: doc.id // Your mapping style
-      } as Order));
-      callback(orders);
-    },
-    (error) => {
-      console.error('Orders listener error:', error);
-      callback([]);
+    let q = query(collection(db, 'orders'));
+    try {
+        q = query(q, orderBy('orderDate', 'desc')); // Your schema
+    } catch (e) {
+        q = query(collection(db, 'orders')); // Fallback
     }
-  );
-  return unsubscribe;
+    const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+            const orders = snapshot.docs.map((doc) => ({
+                ...doc.data(),
+                _id: doc.id // Your mapping style
+            } as Order));
+            callback(orders);
+        },
+        (error) => {
+            console.error('Orders listener error:', error);
+            callback([]);
+        }
+    );
+    return unsubscribe;
 };
 
 export const listenToSuppliers = (callback: (suppliers: Supplier[]) => void): (() => void) => {
-  let q = query(collection(db, 'suppliers'), orderBy('name', 'desc'));
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const suppliers = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      } as Supplier));
-      callback(suppliers);
-    },
-    (error) => {
-      console.error('Suppliers listener error:', error);
-      callback([]);
-    }
-  );
-  return unsubscribe;
+    let q = query(collection(db, 'suppliers'), orderBy('name', 'desc'));
+    const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+            const suppliers = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data()
+            } as Supplier));
+            callback(suppliers);
+        },
+        (error) => {
+            console.error('Suppliers listener error:', error);
+            callback([]);
+        }
+    );
+    return unsubscribe;
 };
 
 export const listenToPurchases = (callback: (purchases: Purchase[]) => void): (() => void) => {
-  let q = query(collection(db, 'purchases'));
-  try {
-    q = query(q, orderBy('createdAt', 'desc'));
-  } catch (e) {
-    q = query(collection(db, 'purchases')); // Fallback
-  }
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const purchases = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      } as Purchase));
-      callback(purchases);
-    },
-    (error) => {
-      console.error('Purchases listener error:', error);
-      callback([]);
+    let q = query(collection(db, 'purchases'));
+    try {
+        q = query(q, orderBy('createdAt', 'desc'));
+    } catch (e) {
+        q = query(collection(db, 'purchases')); // Fallback
     }
-  );
-  return unsubscribe;
+    const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+            const purchases = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data()
+            } as Purchase));
+            callback(purchases);
+        },
+        (error) => {
+            console.error('Purchases listener error:', error);
+            callback([]);
+        }
+    );
+    return unsubscribe;
 };
 
 // BONUS: Listen to invoices (uses orders, as per your setup)
 export const listenToInvoices = (callback: (invoices: Order[]) => void): (() => void) => {
-  return listenToOrders(callback); // Alias – since invoices are orders
+    return listenToOrders(callback); // Alias – since invoices are orders
 };

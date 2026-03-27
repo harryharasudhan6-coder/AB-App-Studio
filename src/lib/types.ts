@@ -4,12 +4,19 @@ import { Timestamp } from 'firebase/firestore';  // For server timestamps (add t
 // Enums (Unchanged)
 export type CalculationType = 'Per Unit' | 'Per Kg';
 
-export type ProductCategory = 'General' | 'Red Bricks' | 'Rods & Rings';
+export type ProductCategory = 'General' | 'Red Bricks' | 'Rods & Rings' | 'Savukku Stick';
 
-export type OrderStatus = 'Pending' | 'Part Payment' | 'Fulfilled' | 'Canceled';
+export type OrderStatus = 'Pending' | 'Part Payment' | 'Fulfilled' | 'Canceled'| 'Deleted';
 export type PaymentTerm = 'Full Payment' | 'Credit';
 export type PurchasePaymentTerm = 'Paid' | 'Credit';
 export type PaymentMode = 'Cash' | 'Card' | 'UPI' | 'Cheque' | 'Online Transfer';
+export type SortKey =
+  | 'id'
+  | 'customerName'
+  | 'orderDate'
+  | 'grandTotal'
+  | 'balanceDue'
+  | 'status';
 
 // Customer (Unchanged + orders? for relation)
 export interface Customer {
@@ -45,9 +52,11 @@ export interface Product {
   name: string;
   sku: string;
   stock: number;
-  price: number;
+  price?: number;  // Keep for legacy
+  salePrice: number;  // Add: Matches DB
+  costPrice?: number;  // Add: If using for costs
   cost: number; // Cost of Goods Sold (required, default 0 in dialogs if needed)
-  gst: number;  // GST % (0-100)
+  gst?: number;  // GST % (0-100)
   reorderPoint?: number;
   calculationType: CalculationType;  // Made required for pricing logic
   category: ProductCategory;  // Made required for conditional fields (e.g., weightPerUnit)
@@ -74,12 +83,14 @@ export interface OrderItem {
   productId: string;
   productName: string;
   quantity: number;
-  price: number;
+  price: string;
+  sku: string;
   cost: number; // Snapshot of cost at time of sale
-  gst: number;  // GST % snapshot
+  gst?: number;  // GST % snapshot
   calculationType?: CalculationType;
   category?: ProductCategory;
   brand?: string; // Brand for items like bricks
+  total: number;
   totalWeight?: number; // For Rods & Rings (computed: weightPerUnit * quantity)
   weightPerUnit?: number;  // Added: Snapshot from Product.weightPerUnit (for kg calcs)
 }

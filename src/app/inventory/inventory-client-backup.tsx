@@ -5,6 +5,7 @@ import type { Product, CalculationType, ProductCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowUpDown } from 'lucide-react';  // For sort icons (already in orders)
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PlusCircle, MoreHorizontal, AlertTriangle, Database, Edit, Trash2, ArrowUpDown, Loader2 } from 'lucide-react';
@@ -22,6 +23,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Helper for formatting numbers (assumed to exist)
 const formatNumber = (num: number | undefined) => num !== undefined ? num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+
+// SortKey type (added: adapted from orders for Product fields – place near top after imports)
+type SortKey = keyof Product | 'id' | 'name' | 'sku' | 'stock' | 'price' | 'category' | 'calculationType' | 'reorderPoint' | 'createdAt' | 'updatedAt';
 
 // --- AddProductDialog Component (Assumed to be in the original file, slightly modified for flow)
 interface AddProductDialogProps {
@@ -425,6 +429,8 @@ export function InventoryClient({ products: initialProducts }: { products: Produ
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState<ProductCategory | 'all'>('all');
     const [firebaseStatus, setFirebaseStatus] = useState({ connected: true, message: "" });
+    // Added: sortConfig state (exact from orders – place after existing states)
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>(null);
     const { toast } = useToast();
 
     // Side effect to load data
@@ -481,9 +487,63 @@ export function InventoryClient({ products: initialProducts }: { products: Produ
         }
     };
 
-    // Filtering and Sorting
+    // Added: requestSort function (exact from orders – place after handlers)
+    const requestSort = (key: SortKey) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    // Added: sortedProducts useMemo (new: sort logic from orders – before filteredProducts)
+    const sortedProducts = useMemo(() => {
+        let sortableItems = [...products];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                let aValue = a[sortConfig.key as keyof Product];
+                let bValue = b[sortConfig.key as keyof Product];
+
+                if (aValue === undefined || aValue === null) return 1;
+                if (bValue === undefined || bValue === null) return -1;
+                
+                // Handle dates (e.g., createdAt/updatedAt ISO strings)
+                if (sortConfig.key === 'createdAt' || sortConfig.key === 'updatedAt') {
+                    const dateA = new Date(aValue as string).getTime();
+                    const dateB = new Date(bValue as string).getTime();
+                    if (isNaN(dateA)) return 1;
+                    if (isNaN(dateB)) return -1;
+                    return sortConfig.direction === 'ascending' ? dateA - dateB : dateB - dateA;
+                }
+
+                // Numbers (stock, price, etc.)
+                if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+                }
+                
+                // Strings (name, sku, category, etc.)
+                const strA = String(aValue).toLowerCase();
+                const strB = String(bValue).toLowerCase();
+
+                if (strA < strB) {
+                    return sortConfig.direction === 'ascending' ? -1 : 1;
+                }
+                if (strA > strB) {
+                    return sortConfig.direction === 'ascending' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        // Fallback to default sort by createdAt desc if no sortConfig
+        else {
+            sortableItems.sort((a, b) => new Date(b.createdAt || '1970-01-01').getTime() - new Date(a.createdAt || '1970-01-01').getTime());
+        }
+        return sortableItems;
+    }, [products, sortConfig]);
+
+    // Updated: Filtering and Sorting (modified: use sortedProducts as base, keep existing filter logic)
     const filteredProducts = useMemo(() => {
-        let filtered = products;
+        let filtered = sortedProducts;  // Changed: Start from sortedProducts instead of products
 
         if (filterCategory !== 'all') {
             filtered = filtered.filter(p => p.category === filterCategory);
@@ -498,9 +558,9 @@ export function InventoryClient({ products: initialProducts }: { products: Produ
             );
         }
 
-        // Simple default sort by creation date (newest first)
-        return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [products, filterCategory, searchTerm]);
+        // No additional sort here – sorting is handled in sortedProducts
+        return filtered;
+    }, [sortedProducts, filterCategory, searchTerm]);  // Updated dep: sortedProducts instead of products
 
     return (
         // **********************************************
@@ -558,11 +618,32 @@ export function InventoryClient({ products: initialProducts }: { products: Produ
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[200px]">Product Name</TableHead>
-                                        <TableHead>SKU</TableHead>
-                                        <TableHead>Category</TableHead>
-                                        <TableHead>Stock</TableHead>
-                                        <TableHead className="text-right">Price</TableHead>
+                                        {/* Updated: Sortable Headers (added: Button with onClick and ArrowUpDown for each column except Actions) */}
+                                        <TableHead className="w-[200px]">
+                                            <Button variant="ghost" onClick={() => requestSort('name')}>
+                                                Product Name <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => requestSort('sku')}>
+                                                SKU <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => requestSort('category')}>
+                                                Category <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Button variant="ghost" onClick={() => requestSort('stock')}>
+                                                Stock <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            <Button variant="ghost" onClick={() => requestSort('price')}>
+                                                Price <ArrowUpDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </TableHead>
                                         <TableHead className="w-[50px] text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>

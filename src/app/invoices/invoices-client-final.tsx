@@ -1,11 +1,10 @@
 'use client';
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { Order, Payment, PaymentMode, Customer, SortKey } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,526 +12,842 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-// Note: Keeping icons imported for external use (e.g., table headers, Loader)
-import { Loader2, Receipt, Trash2, Share2, ArrowUpDown, MoreHorizontal, Edit } from 'lucide-react';
+import { Loader2, Receipt, Trash2, Share2, ArrowUpDown, MoreHorizontal, Edit, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-
-import { getInvoices, addPaymentToOrder, deletePaymentFromOrder } from '@/lib/data';
+import { getInvoices, addPaymentToOrder, deletePaymentFromOrder, getCustomers, updateOrder, permanentlyDeleteOrder } from '@/lib/data';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Edit2, Download } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
-// Placeholder utility functions (replace with your actual data and logic imports)
-// NOTE: These are assumed to be imported from your backend data layer (e.g., src/lib/data.ts)
-const addPaymentToOrder = (customerId: string, orderId: string, paymentData: Omit<Payment, 'id'>) => {
-    console.log(`[DATA] Recording payment for Order ID: ${orderId}`);
-    // This is where the actual API call logic goes
-    return Promise.resolve({ id: 'P-' + Date.now(), ...paymentData });
-};
-const deletePaymentFromOrder = (orderId: string, paymentId: string) => {
-    console.log(`[DATA] Deleting payment ${paymentId} from Order ID: ${orderId}`);
-    // Actual delete logic
-    return Promise.resolve(true);
-};
+// Utility Functions
 const formatNumber = (num: number) => num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatCurrency = (num: number) => `₹ ${formatNumber(num)}`;
-const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
-// Placeholder component for Receipt (MUST be replaced with your actual component)
-const ReceiptTemplate = ({ receiptRef, order, payment, historicalPayments, customer, logoUrl }: any) => (
-    <div ref={receiptRef} className="p-6 border rounded-lg bg-white text-sm" id="receipt-template">
-        <h3 className="text-lg font-bold">Receipt for {order.id}</h3>
-        <p>Customer: {customer?.name || 'N/A'}</p>
-        <p>Amount Paid: {formatCurrency(payment.amount)}</p>
-        <p>Balance Due: {formatCurrency(order.balanceDue)}</p>
-        {/* Placeholder for actual receipt layout and printing logic */}
+// Receipt Template
+// Receipt Template
+const ReceiptTemplate = ({ receiptRef, order, payment, historicalPayments, customer, logoUrl }: any) => {
+  const totalPaid = historicalPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
+
+  return (
+    <div ref={receiptRef} className="p-8 bg-white text-slate-900 font-sans max-w-[800px] mx-auto" id="receipt-template">
+      {/* Header */}
+      <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col items-start">
+          {logoUrl && <img src={logoUrl} alt="Logo" className="h-24 object-contain" />}
+        </div>
+        <div className="text-right">
+          <h1 className="text-4xl font-bold text-slate-700 tracking-wide">RECEIPT</h1>
+          <p className="text-sm font-semibold mt-1">Receipt #: RCPT-{order.id.replace('ORD', 'INV')}</p>
+          <p className="text-sm font-semibold">Payment Date: {formatDate(payment.date)}</p>
+        </div>
+      </div>
+
+      {/* Company Info */}
+      <div className="text-center mb-4">
+        <h2 className="text-xl font-bold mb-1">AB Agency</h2>
+        <p className="text-sm text-slate-600 leading-tight">No.1, Ayyanchery main road, Ayyanchery, Urapakkam</p>
+        <p className="text-sm text-slate-600 leading-tight">Chennai - 603210</p>
+        <p className="text-sm text-slate-600 leading-tight mt-1">MOB: 95511 95505 / 95001 82975</p>
+      </div>
+
+      {/* Bill To & Payment Details */}
+      <div className="flex justify-between mb-12 gap-8">
+        <div className="flex-1">
+          <h3 className="text-slate-500 font-semibold mb-2">Billed To:</h3>
+          <p className="font-bold text-lg">{customer?.name || 'Customer Name'}</p>
+          <p className="text-sm text-slate-600 whitespace-pre-line">{order.deliveryAddress || customer?.address || 'Address not provided'}</p>
+        </div>
+        <div className="flex-1 text-right">
+          <h3 className="text-slate-500 font-semibold mb-2">Payment Details:</h3>
+          <p className="text-sm"><span className="text-slate-600">Invoice #:</span> <span className="font-semibold">{order.id.replace('ORD', 'INV')}</span></p>
+          <p className="text-sm"><span className="text-slate-600">Payment Method:</span> <span className="font-semibold">{payment.mode}</span></p>
+          <p className="text-xs text-slate-500 mt-2 max-w-[280px] ml-auto leading-tight">
+            Notes: PAYMENT OF {formatCurrency(payment.amount)} FOR A PENDING OUTSTANDING AMOUNT OF {formatCurrency((order.balanceDue || 0) + payment.amount)}
+          </p>
+        </div>
+      </div>
+
+      {/* Amount Paid */}
+      <div className="text-center mb-12">
+        <h3 className="text-slate-500 mb-2">Amount Paid this Transaction</h3>
+        <p className="text-5xl font-bold text-slate-900">{formatCurrency(payment.amount)}</p>
+      </div>
+
+      {/* Summary */}
+      <div className="border-t border-b border-slate-200 py-4 mb-8">
+        <div className="flex justify-between mb-2">
+          <span className="text-slate-600">Original Invoice Total</span>
+          <span className="font-semibold">{formatCurrency(order.grandTotal)}</span>
+        </div>
+        <div className="flex justify-between bg-slate-50 p-2 rounded">
+          <span className="font-bold text-slate-900">Balance Due</span>
+          <span className={`font-bold ${order.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+            {formatCurrency(order.balanceDue)}
+          </span>
+        </div>
+      </div>
+
+      {/* Payment History */}
+      <div>
+        <h3 className="font-bold mb-4 text-sm uppercase tracking-wider text-slate-700">Payment History for this Invoice:</h3>
+        <table className="w-full text-sm">
+          <thead className="bg-slate-100">
+            <tr>
+              <th className="text-left p-2 font-semibold text-slate-600">Date</th>
+              <th className="text-right p-2 font-semibold text-slate-600">Amount Paid</th>
+            </tr>
+          </thead>
+          <tbody>
+            {historicalPayments.map((p: any, i: number) => (
+              <tr key={i} className="border-b border-slate-100 last:border-0">
+                <td className="p-2">{formatDate(p.date)}</td>
+                <td className="p-2 text-right">{formatCurrency(p.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold">
+              <td className="p-2 text-right pt-4">Total Paid:</td>
+              <td className="p-2 text-right pt-4">{formatCurrency(totalPaid)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
-);
+  );
+};
 
-const useInvoiceData = () => {
-  const [allInvoices, setAllInvoices] = useState<Order[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+// Hook: useInvoiceData
+const useInvoiceData = (initialOrders: Order[] = [], initialCustomers: Customer[] = []) => {
+  const [allInvoices, setAllInvoices] = useState<Order[]>(initialOrders);
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [loading, setLoading] = useState(!initialOrders.length);
 
-  // Fetch invoices from Firestore
   const refreshOrders = async () => {
     try {
       setLoading(true);
-      const invoices = await getInvoices(); // ✅ uses Firestore now
+      const [invoices, customersData] = await Promise.all([
+        getInvoices(),
+        getCustomers()
+      ]);
       setAllInvoices(invoices);
-      console.log(`Fetched ${invoices.length} invoices from Firestore`);
+      setCustomers(customersData);
     } catch (error) {
-      console.error("Failed to fetch invoices:", error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Run once on mount
   useEffect(() => {
-    refreshOrders();
+    if (initialOrders.length === 0) {
+      refreshOrders();
+    }
   }, []);
 
   return { allInvoices, customers, refreshOrders, loading };
 };
 
-
-// ------------------------------------------------------------------------------------------------
-// ------------------------------------------------------------------------------------------------
-
-export const InvoicesClient = ({ logoUrl }: { logoUrl?: string }) => {
-    const { allInvoices, customers, refreshOrders } = useInvoiceData();
-    const { toast } = useToast();
-
-    // --- NEW PAYMENT FORM STATE (Fixes Issue 1: Date and Notes) ---
-    const [paymentAmount, setPaymentAmount] = useState<string>('');
-    const [paymentMethod, setPaymentMode] = useState<PaymentMode>('Cash'); 
-    const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]); 
-    const [paymentNotes, setPaymentNotes] = useState<string>(''); 
-    const [isPaymentLoading, setIsPaymentLoading] = useState(false);
-    
-    // --- TABLE STATE ---
-    const [searchTerm, setSearchTerm] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey | null, direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
-    
-    // --- SHEET/MODAL STATE ---
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [selectedInvoice, setSelectedInvoice] = useState<Order | null>(null);
-    const [receiptToPrint, setReceiptToPrint] = useState<{ order: Order, payment: Payment, historicalPayments: Payment[] } | null>(null);
-    const receiptRef = useRef<HTMLDivElement>(null);
-    const [tabValue, setTabValue] = useState('details');
-
-    // Filter and Sort Logic
-    const filteredInvoices = useMemo(() => {
-        let filtered = allInvoices.filter(invoice =>
-            invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            invoice.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-        // Sorting Logic
-        if (sortConfig.key) {
-            filtered.sort((a, b) => {
-                const aValue = a[sortConfig.key!];
-                const bValue = b[sortConfig.key!];
-
-                if (aValue === undefined || aValue === null) return 1;
-                if (bValue === undefined || bValue === null) return -1;
-                
-                if (typeof aValue === 'number' && typeof bValue === 'number') {
-                    return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-                }
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-                }
-                return 0;
-            });
-        }
-        return filtered;
-    }, [allInvoices, searchTerm, sortConfig]);
-
-    const requestSort = (key: SortKey) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    const getSortIndicator = (key: SortKey) => {
-        if (sortConfig.key !== key) return null;
-        return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
-    };
-
-
-    // --------------------------------------------------------------------------------
-    // --- PAYMENT HANDLERS ---
-    // --------------------------------------------------------------------------------
-
-    // ⭐️ PAYMENT RECORD FIX (Finalized to use _id) ⭐️
-    const handleRecordPayment = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (!selectedInvoice || parseFloat(paymentAmount) <= 0 || isPaymentLoading) return;
-        
-        // ⚠️ BACKEND NOTE: The 'Order not found' error is because selectedInvoice._id is empty.
-        // You MUST fix your data fetching logic (e.g., getOrders in src/lib/data.ts)
-        // to map the database's document ID to the _id property.
-
-        setIsPaymentLoading(true);
-        const amount = parseFloat(paymentAmount);
-
-        try {
-            const newPayment = await addPaymentToOrder(
-                selectedInvoice.customerId,
-                selectedInvoice._id, // Using _id, which MUST contain the cryptic database key
-                {
-                    amount: amount,
-                    mode: paymentMethod,
-                    date: paymentDate,
-					notes: paymentNotes, 
-                    recordedBy: 'User'
-                }
-            );
-
-            const customer = customers.find(c => c.id === selectedInvoice.customerId);
-
-            toast({ title: "Payment Recorded", description: `Recorded ${formatCurrency(amount)} via ${paymentMethod}.` });
-            
-            await refreshOrders();
-
-            if (customer && newPayment) {
-                const updatedInvoice = allInvoices.find(o => o._id === selectedInvoice._id);
-                if(updatedInvoice) {
-                    setReceiptToPrint({
-                        order: updatedInvoice,
-                        payment: newPayment,
-                        historicalPayments: updatedInvoice.payments?.filter(p => p.id !== newPayment.id) || [],
-                    });
-                }
-            }
-
-            setPaymentAmount(''); // Clear form
-			setPaymentNotes(''); 
-        } catch (error) {
-            toast({ title: "Payment Failed", description: "Failed to record payment. See console for details.", variant: "destructive" });
-            console.error("Error recording payment:", error);
-        } finally {
-            setIsPaymentLoading(false);
-        }
-    };
-
-
-    const handleDeletePayment = async (paymentId: string) => {
-        if (!selectedInvoice) return;
-
-        try {
-            await deletePaymentFromOrder(selectedInvoice._id, paymentId);
-            toast({ title: "Payment Deleted", description: `Payment ${paymentId} has been successfully removed.` });
-            await refreshOrders();
-        } catch (error) {
-            toast({ title: "Deletion Failed", description: "Failed to delete payment. See console for details.", variant: "destructive" });
-            console.error("Error deleting payment:", error);
-        }
-    };
-
-
-    // --------------------------------------------------------------------------------
-    // --- COMPONENT RENDER ---
-    // --------------------------------------------------------------------------------
-
-    return (
-        <div className="p-4 space-y-4">
-            <h1 className="text-3xl font-bold">Invoices</h1>
-            
-            <div className="flex justify-between items-center">
-                <Input
-                    placeholder="Search by Invoice ID or Customer Name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                />
-                <Button onClick={() => console.log("Navigate to New Invoice form")}>
-                    + New Invoice
-                </Button>
-            </div>
-
-            <div className="border rounded-lg overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            {/* Table Headers with Sorting */}
-                            <TableHead className="w-[100px] cursor-pointer" onClick={() => requestSort('id')}>Invoice ID{getSortIndicator('id')}</TableHead>
-                            <TableHead className="cursor-pointer" onClick={() => requestSort('customerName')}>Customer{getSortIndicator('customerName')}</TableHead>
-                            <TableHead className="cursor-pointer text-right" onClick={() => requestSort('grandTotal')}>Total{getSortIndicator('grandTotal')}</TableHead>
-                            <TableHead className="cursor-pointer text-right" onClick={() => requestSort('balanceDue')}>Balance Due{getSortIndicator('balanceDue')}</TableHead>
-                            <TableHead className="cursor-pointer w-[150px]" onClick={() => requestSort('status')}>Status{getSortIndicator('status')}</TableHead>
-                            <TableHead className="text-right w-[50px]">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredInvoices.length > 0 ? (
-                            filteredInvoices.map((invoice) => (
-                                <TableRow key={invoice.id} onClick={() => { setSelectedInvoice(invoice); setIsSheetOpen(true); }} className="cursor-pointer hover:bg-muted/50">
-                                    <TableCell className="font-medium">{invoice.id}</TableCell>
-                                    <TableCell>{invoice.customerName}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(invoice.grandTotal)}</TableCell>
-                                    <TableCell className={`text-right font-semibold ${invoice.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        {formatCurrency(invoice.balanceDue)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={invoice.status === 'Paid' ? 'default' : invoice.status === 'Partially Paid' ? 'secondary' : 'outline'}>
-                                            {invoice.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedInvoice(invoice); setIsSheetOpen(true); setTabValue('payment'); }}>
-                                            <Receipt className="h-4 w-4" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center">
-                                    No invoices found matching your criteria.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-
-            {/* Invoice Detail Sheet */}
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent className="w-full sm:max-w-xl">
-                    <SheetHeader>
-                        <SheetTitle>{selectedInvoice ? `Invoice ${selectedInvoice.id}` : 'Invoice Details'}</SheetTitle>
-                        <SheetDescription>
-                            Review details and record payments for this invoice.
-                        </SheetDescription>
-                    </SheetHeader>
-                    
-                    {selectedInvoice && (
-                        <div className="h-full pt-4 flex flex-col">
-                            <Tabs value={tabValue} onValueChange={setTabValue} className="w-full">
-                                <TabsList className="grid w-full grid-cols-3">
-                                    <TabsTrigger value="details">Details</TabsTrigger>
-                                    <TabsTrigger value="payment">Payment</TabsTrigger>
-                                    <TabsTrigger value="history">History</TabsTrigger>
-                                </TabsList>
-                                
-                                {/* ----------------------- TAB: DETAILS ----------------------- */}
-                                <TabsContent value="details" className="mt-4 space-y-4">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Invoice Summary</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-2 text-sm">
-                                            <p><strong>Customer:</strong> {selectedInvoice.customerName}</p>
-                                            <p><strong>Total:</strong> {formatCurrency(selectedInvoice.grandTotal)}</p>
-                                            <p><strong>Balance Due:</strong> <span className={`font-semibold ${selectedInvoice.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(selectedInvoice.balanceDue)}</span></p>
-                                            <p><strong>Date:</strong> {formatDate(selectedInvoice.orderDate)}</p>
-                                            <p><strong>Due:</strong> {selectedInvoice.dueDate ? formatDate(selectedInvoice.dueDate) : 'N/A'}</p>
-                                        </CardContent>
-                                        <CardFooter className="flex justify-between">
-                                            <Button variant="outline" className="flex items-center gap-2">
-                                                <Edit className="h-4 w-4" /> Edit Invoice
-                                            </Button>
-                                            <Button variant="secondary" className="flex items-center gap-2">
-                                                <Share2 className="h-4 w-4" /> Share
-                                            </Button>
-                                        </CardFooter>
-                                    </Card>
-
-                                    {/* Line Items Table (Placeholder - needs full implementation) */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Line Items</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Item</TableHead>
-                                                        <TableHead className="text-right">Qty</TableHead>
-                                                        <TableHead className="text-right">Price</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {selectedInvoice.items.length > 0 ? (
-                                                        selectedInvoice.items.map((item, index) => (
-                                                            <TableRow key={index}>
-                                                                <TableCell>{item.name}</TableCell>
-                                                                <TableCell className="text-right">{item.quantity}</TableCell>
-                                                                <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
-                                                            </TableRow>
-                                                        ))
-                                                    ) : (
-                                                        <TableRow><TableCell colSpan={3} className="text-center">No items listed.</TableCell></TableRow>
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
-
-
-                                {/* ----------------------- TAB: PAYMENT ----------------------- */}
-                                <TabsContent value="payment" className="mt-4 space-y-4">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Record New Payment</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <form onSubmit={handleRecordPayment} className="space-y-4">
-                                                {/* 1. Amount to Pay */}
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="paymentAmount">Amount to Pay</Label>
-                                                    <Input
-                                                        id="paymentAmount"
-                                                        type="number"
-                                                        step="0.01"
-                                                        max={selectedInvoice.balanceDue}
-                                                        value={paymentAmount}
-                                                        onChange={(e) => setPaymentAmount(e.target.value)}
-                                                        required
-                                                    />
-                                                </div>
-
-                                                {/* 2. Payment Date and Payment Method (Grid - Fixes Issue 1 layout) */}
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    {/* Payment Date Input */}
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="paymentDate">Payment Date</Label>
-                                                        <Input
-                                                            id="paymentDate"
-                                                            type="date"
-                                                            value={paymentDate}
-                                                            onChange={(e) => setPaymentDate(e.target.value)}
-                                                            required
-                                                        />
-                                                    </div>
-                                                    
-                                                    {/* Payment Method Select (now includes UPI) */}
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="paymentMethod">Payment Method</Label>
-                                                        <Select value={paymentMethod} onValueChange={v => setPaymentMode(v as PaymentMode)}>
-                                                            {/* ⭐️ FIX: Added id="paymentMethod" to link to the Label and resolve warnings ⭐️ */}
-                                                            <SelectTrigger id="paymentMethod"><SelectValue /></SelectTrigger> 
-                                                            <SelectContent>
-                                                                <SelectItem value="Cash">Cash</SelectItem>
-                                                                <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                                                                <SelectItem value="UPI">UPI</SelectItem>
-                                                                <SelectItem value="Credit Card">Credit Card</SelectItem>
-                                                                <SelectItem value="Mobile Money">Mobile Money</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                </div>
-
-                                                {/* 3. Notes (Optional - Fixes Issue 1) */}
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="paymentNotes">Notes (Optional)</Label>
-                                                    <Input
-                                                        id="paymentNotes"
-                                                        value={paymentNotes}
-                                                        onChange={(e) => setPaymentNotes(e.target.value)}
-                                                        placeholder="e.g. Cheque No. 12345"
-                                                    />
-                                                </div>
-
-                                                <Button type="submit" className="w-full" disabled={isPaymentLoading || parseFloat(paymentAmount) <= 0 || (selectedInvoice.balanceDue ?? 0) <= 0}>
-                                                    {isPaymentLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                    Record Payment
-                                                </Button>
-                                            </form>
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
-
-
-                                {/* ----------------------- TAB: HISTORY ----------------------- */}
-                                <TabsContent value="history" className="mt-4 space-y-4">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Payment History</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Date</TableHead>
-                                                        <TableHead>Amount</TableHead>
-                                                        <TableHead>Method</TableHead>
-                                                        <TableHead className="text-right">Actions</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {selectedInvoice.payments?.length > 0 ? (
-                                                        selectedInvoice.payments.map((payment) => (
-                                                            <TableRow key={payment.id}>
-                                                                <TableCell>{formatDate(payment.date)}</TableCell>
-                                                                <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
-                                                                <TableCell>{payment.mode}</TableCell>
-                                                                <TableCell className="text-right">
-                                                                    <DropdownMenu>
-                                                                        <DropdownMenuTrigger asChild>
-                                                                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                                                                <span className="sr-only">Open menu</span>
-                                                                                <MoreHorizontal className="h-4 w-4" />
-                                                                            </Button>
-                                                                        </DropdownMenuTrigger>
-                                                                        <DropdownMenuContent align="end">
-                                                                            <DropdownMenuItem onClick={() => console.log('View receipt for', payment.id)}>View Receipt</DropdownMenuItem>
-                                                                            <DropdownMenuSeparator />
-                                                                            <AlertDialog>
-                                                                                <AlertDialogTrigger asChild>
-                                                                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">
-                                                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete Payment
-                                                                                    </DropdownMenuItem>
-                                                                                </AlertDialogTrigger>
-                                                                                <AlertDialogContent>
-                                                                                    <AlertDialogHeader>
-                                                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                                                        <AlertDialogDescription>
-                                                                                            This action cannot be undone. This will permanently remove the payment record and adjust the invoice balance.
-                                                                                        </AlertDialogDescription>
-                                                                                    </AlertDialogHeader>
-                                                                                    <AlertDialogFooter>
-                                                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                                        <AlertDialogAction 
-                                                                                            onClick={() => handleDeletePayment(payment.id)} 
-                                                                                            className="bg-red-600 hover:bg-red-700"
-                                                                                        >
-                                                                                            Confirm Delete
-                                                                                        </AlertDialogAction>
-                                                                                    </AlertDialogFooter>
-                                                                                </AlertDialogContent>
-                                                                            </AlertDialog>
-                                                                        </DropdownMenuContent>
-                                                                    </DropdownMenu>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))
-                                                    ) : (
-                                                        <TableRow><TableCell colSpan={4} className="text-center">No payments recorded yet.</TableCell></TableRow>
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
-                            </Tabs>
-                        </div>
-                    )}
-                </SheetContent>
-            </Sheet>
-
-            {/* Receipt Print Modal (Assuming the logic is complex and remains as is) */}
-            {receiptToPrint && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
-                    <Card className="w-full max-w-xl mx-4">
-                        <CardHeader className="flex flex-row justify-between items-center">
-                            <CardTitle>Print Receipt</CardTitle>
-                            <Button onClick={() => setReceiptToPrint(null)} variant="ghost">Close</Button>
-                        </CardHeader>
-                        <CardContent>
-                            <ReceiptTemplate 
-                                receiptRef={receiptRef} 
-                                order={receiptToPrint.order} 
-                                payment={receiptToPrint.payment} 
-                                historicalPayments={receiptToPrint.historicalPayments} 
-                                customer={customers.find(c => c.id === receiptToPrint.order.customerId)}
-                                logoUrl={logoUrl}
-                            />
-                        </CardContent>
-                        <CardFooter>
-                             <Button onClick={() => setReceiptToPrint(null)} className="w-full">
-                                Done Printing
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </div>
-            )}
-        </div>
+// REUSABLE INVOICE TABLE
+const InvoiceTable = ({
+  invoices,
+  searchTerm,
+  sortConfig,
+  requestSort,
+  getSortIndicator,
+  setSelectedInvoice,
+  setIsSheetOpen,
+  setTabValue,
+  handleRestoreOrder,
+  handleDownloadInvoice,
+  handlePermanentDelete,
+}: {
+  invoices: Order[];
+  searchTerm: string;
+  sortConfig: any;
+  requestSort: (key: SortKey) => void;
+  getSortIndicator: (key: SortKey) => React.ReactNode;
+  setSelectedInvoice: (invoice: Order) => void;
+  setIsSheetOpen: (open: boolean) => void;
+  setTabValue: (value: string) => void;
+  handleRestoreOrder: (order: Order) => void;
+  handleDownloadInvoice: (order: Order) => void;
+  handlePermanentDelete: (order: Order) => void;
+}) => {
+  const filtered = useMemo(() => {
+    let result = invoices.filter(invoice =>
+      invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      invoice.customerName.toLowerCase().includes(searchTerm.toLowerCase())
     );
-}
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        let aValue = a[sortConfig.key!];
+        let bValue = b[sortConfig.key!];
+        if (sortConfig.key === 'id') {
+          aValue = parseInt(a.id.replace(/[^0-9]/g, '')) || 0;
+          bValue = parseInt(b.id.replace(/[^0-9]/g, '')) || 0;
+        }
+        if (aValue === undefined || aValue === null) return 1;
+        if (bValue === undefined || bValue === null) return -1;
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+        }
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        }
+        return 0;
+      });
+    }
+    return result;
+  }, [invoices, searchTerm, sortConfig]);
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-[120px] cursor-pointer" onClick={() => requestSort('id')}>
+            <div className="flex items-center justify-start gap-1">Invoice ID {getSortIndicator('id')}</div>
+          </TableHead>
+          <TableHead className="cursor-pointer" onClick={() => requestSort('customerName')}>
+            <div className="flex items-center justify-start gap-1">Customer {getSortIndicator('customerName')}</div>
+          </TableHead>
+          <TableHead className="cursor-pointer" onClick={() => requestSort('orderDate')}>
+            <div className="flex items-center justify-start gap-1">Date {getSortIndicator('orderDate')}</div>
+          </TableHead>
+          <TableHead className="cursor-pointer text-right" onClick={() => requestSort('grandTotal')}>
+            <div className="flex items-center justify-end gap-1">Total {getSortIndicator('grandTotal')}</div>
+          </TableHead>
+          <TableHead className="cursor-pointer text-right" onClick={() => requestSort('balanceDue')}>
+            <div className="flex items-center justify-end gap-1">Balance Due {getSortIndicator('balanceDue')}</div>
+          </TableHead>
+          <TableHead className="w-[150px] cursor-pointer text-center" onClick={() => requestSort('status')}>
+            <div className="flex items-center justify-center gap-1">Status {getSortIndicator('status')}</div>
+          </TableHead>
+          <TableHead className="text-center min-w-[100px]">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {filtered.length > 0 ? (
+          filtered.map((invoice) => (
+            <TableRow
+              key={invoice.id}
+              onClick={() => {
+                setSelectedInvoice(invoice);
+                setIsSheetOpen(true);
+                setTabValue('payments'); // ← THIS FIXES BLANK TAB
+              }}
+              className="cursor-pointer hover:bg-muted/50"
+            >
+              <TableCell className="font-medium">{invoice.id}</TableCell>
+              <TableCell>{invoice.customerName}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{formatDate(invoice.orderDate)}</TableCell>
+              <TableCell className="text-right">{formatCurrency(invoice.grandTotal)}</TableCell>
+              <TableCell className={`text-right font-semibold ${invoice.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {formatCurrency(invoice.balanceDue)}
+              </TableCell>
+              <TableCell>
+                <Badge variant={invoice.status === 'Paid' ? 'default' : invoice.status === 'Partially Paid' ? 'secondary' : 'outline'}>
+                  {invoice.status}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-center">
+                {invoice.status === 'Deleted' ? (
+                  <div className="flex justify-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRestoreOrder(invoice);
+                      }}
+                      title="Restore order"
+                    >
+                      <RotateCcw className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadInvoice(invoice);
+                      }}
+                      title="Download invoice"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Permanently delete order"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Permanently Delete Order</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            ⚠️ This will permanently delete order {invoice.id}. This action cannot be undone and the order cannot be restored.
+                            <br /><br />
+                            Are you absolutely sure?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePermanentDelete(invoice);
+                            }}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Permanently Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ) : (
+                  <Badge variant={invoice.status === 'Full Paid' ? 'default' : 'secondary'} className="capitalize">
+                    {invoice.status}
+                  </Badge>
+                )}
+              </TableCell>
+            </TableRow>
+          ))
+        ) : (
+          <TableRow>
+            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+              No invoices found in this category.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  );
+};
+
+export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers: initialCustomers = [] }: { logoUrl?: string, orders?: Order[], customers?: Customer[] }) => {
+  const { allInvoices, customers, refreshOrders, loading } = useInvoiceData(initialOrders, initialCustomers);
+  const { toast } = useToast();
+
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [paymentMethod, setPaymentMode] = useState<PaymentMode>('Cash');
+  const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [paymentNotes, setPaymentNotes] = useState<string>('');
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  const [isReceiptLoading, setIsReceiptLoading] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
+  const [activeTab, setActiveTab] = useState<'credit' | 'fullPaid' | 'deleted'>('credit');
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Order | null>(null);
+  const [receiptToPrint, setReceiptToPrint] = useState<{ order: Order; payment: Payment; historicalPayments: Payment[] } | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const [tabValue, setTabValue] = useState('payments'); // ← THIS WAS THE ROOT CAUSE
+
+  const creditInvoices = useMemo(() =>
+    allInvoices.filter(inv =>
+      inv.balanceDue > 0 ||
+      inv.status === 'Pending' ||
+      inv.status === 'Part Payment'
+    ),
+    [allInvoices]
+  );
+  const fullPaidInvoices = useMemo(() =>
+    allInvoices.filter(inv =>
+      inv.balanceDue === 0 &&
+      (inv.status === 'Fulfilled' || inv.status === 'Paid')
+    ),
+    [allInvoices]
+  );
+  const deletedInvoices = useMemo(() =>
+    allInvoices.filter(inv => inv.status === 'Deleted'),
+    [allInvoices]
+  );
+
+  const requestSort = (key: SortKey) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIndicator = (key: SortKey) => {
+    if (sortConfig.key !== key) return <ArrowUpDown className="ml-1 h-4 w-4" />;
+    return sortConfig.direction === 'ascending' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />;
+  };
+
+  // YOUR ORIGINAL PDF CODE (left untouched)
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInvoice || parseFloat(paymentAmount) <= 0 || isPaymentLoading) return;
+    console.log('Selected Invoice:', selectedInvoice); // ← Add this to debug ID
+    console.log("About to record payment for order ID →", selectedInvoice.id);
+    console.log("Firestore _id is →", selectedInvoice._id);
+    setIsPaymentLoading(true);
+    try {
+      await addPaymentToOrder(
+        selectedInvoice.customerId,
+        selectedInvoice.id,  // ← ORD-0040
+        {
+          amount: parseFloat(paymentAmount),
+          mode: paymentMethod,
+          date: paymentDate,
+          notes: paymentNotes,
+          recordedBy: 'User'
+        }
+      );
+      toast({ title: "Payment Recorded", description: `₹${paymentAmount} recorded.` });
+      setPaymentAmount('');
+      setPaymentNotes('');
+      await refreshOrders();
+    } catch (error) {
+      console.error("Payment error:", error); // ← Better logging
+      toast({ title: "Failed", description: "Could not record payment", variant: "destructive" });
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
+
+  // MOVED INSIDE COMPONENT — THIS WAS THE MAIN BUG
+  const handleSharePayment = (payment: Payment, order: Order) => {
+    const customer = customers.find(c => c.id === order.customerId);
+    if (!customer) return;
+    const message = `Hello ${customer.name}, payment of ₹${payment.amount.toFixed(2)} received for invoice ${order.id.replace('ORD', 'INV')}. Thank you! Balance: ₹${order.balanceDue.toFixed(2)}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleDownloadReceipt = (payment: Payment, order: Order) => {
+    const customer = customers.find(c => c.id === order.customerId);
+    if (!customer) return;
+    setReceiptToPrint({ order, payment, historicalPayments: order.payments || [] });
+  };
+
+  const handleDeletePayment = async (payment: Payment, order: Order) => {
+    try {
+      setIsPaymentLoading(true);
+      await deletePaymentFromOrder(order.customerId, order.id, payment.id);
+      toast({
+        title: "Payment Deleted",
+        description: `Payment of ${formatCurrency(payment.amount)} has been deleted. Balances have been recalculated.`
+      });
+      await refreshOrders();
+    } catch (error) {
+      console.error("Delete payment error:", error);
+      toast({
+        title: "Failed",
+        description: "Could not delete payment",
+        variant: "destructive"
+      });
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
+
+  const handleRestoreOrder = async (order: Order) => {
+    try {
+      await updateOrder({ ...order, status: 'Pending', _isDeleted: false } as Order);
+      toast({ title: 'Success', description: `Order ${order.id} has been restored.` });
+      await refreshOrders();
+    } catch (error) {
+      console.error('Failed to restore order:', error);
+      toast({ title: 'Error', description: 'Failed to restore order.', variant: 'destructive' });
+    }
+  };
+
+  const handlePermanentDelete = async (order: Order) => {
+    try {
+      setIsPaymentLoading(true);
+      await permanentlyDeleteOrder(order.id);
+      toast({
+        title: 'Order Permanently Deleted',
+        description: `Order ${order.id} has been permanently removed from the database.`
+      });
+      await refreshOrders();
+    } catch (error) {
+      console.error('Failed to permanently delete order:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to permanently delete order.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
+
+  const handleDownloadInvoice = async (order: Order) => {
+    try {
+      const customer = customers.find(c => c.id === order.customerId);
+      if (!customer) {
+        toast({ title: 'Error', description: 'Customer not found.', variant: 'destructive' });
+        return;
+      }
+
+      // DEBUG: Log addresses to console
+      console.log('=== INVOICE ADDRESS DEBUG ===');
+      console.log('Order ID:', order.id);
+      console.log('Delivery Address:', order.deliveryAddress);
+      console.log('Customer Address:', customer.address);
+      console.log('Address being used:', order.deliveryAddress || customer.address);
+      console.log('============================');
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Add logo if available
+      if (logoUrl) {
+        doc.addImage(logoUrl, 'PNG', 14, 10, 30, 30);
+      }
+
+      // Header
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('INVOICE', pageWidth - 14, 20, { align: 'right' });
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Invoice #: ${order.id.replace('ORD', 'INV')}`, pageWidth - 14, 28, { align: 'right' });
+      doc.text(`Date: ${formatDate(order.orderDate)}`, pageWidth - 14, 34, { align: 'right' });
+
+      // Company info
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('AB Agency', 14, 50);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('No.1, Ayyanchery main road, Ayyanchery, Urapakkam', 14, 56);
+      doc.text('Chennai - 603210', 14, 61);
+      doc.text('MOB: 95511 95505 / 95001 82975', 14, 66);
+
+      // Customer info
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Bill To:', 14, 80);
+      doc.setFont('helvetica', 'normal');
+      doc.text(customer.name, 14, 86);
+      const addressToUse = order.deliveryAddress || customer.address;
+      if (addressToUse) {
+        const addressLines = doc.splitTextToSize(addressToUse, 80);
+        doc.text(addressLines, 14, 92);
+      }
+
+      // Items table
+      const tableData = order.items.map(item => [
+        item.name,
+        item.quantity.toString(),
+        `₹${item.price.toFixed(2)}`,
+        `₹${(item.quantity * item.price).toFixed(2)}`
+      ]);
+
+      autoTable(doc, {
+        startY: 110,
+        head: [['Item', 'Qty', 'Price', 'Total']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [71, 85, 105] },
+      });
+
+      // Totals
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(10);
+      doc.text(`Subtotal: ₹${order.total.toFixed(2)}`, pageWidth - 14, finalY, { align: 'right' });
+      if (order.discount) {
+        doc.text(`Discount: -₹${order.discount.toFixed(2)}`, pageWidth - 14, finalY + 6, { align: 'right' });
+      }
+      if (order.deliveryFees) {
+        doc.text(`Delivery: ₹${order.deliveryFees.toFixed(2)}`, pageWidth - 14, finalY + 12, { align: 'right' });
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(`Grand Total: ₹${order.grandTotal.toFixed(2)}`, pageWidth - 14, finalY + 20, { align: 'right' });
+
+      doc.save(`${order.id.replace('ORD', 'INV')}.pdf`);
+      toast({ title: 'Success', description: 'Invoice downloaded successfully.' });
+    } catch (error) {
+      console.error('Failed to generate invoice:', error);
+      toast({ title: 'Error', description: 'Failed to generate invoice.', variant: 'destructive' });
+    }
+  };
+
+  const handlePrintReceipt = async () => {
+    if (!receiptToPrint || !receiptRef.current) return;
+
+    setIsReceiptLoading(true);
+    try {
+      // Wait a moment for the render
+      await new Promise(resolve => setTimeout(resolve, 250));
+
+      // Capture with higher quality and ensure full height
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        windowHeight: receiptRef.current.scrollHeight,
+        height: receiptRef.current.scrollHeight
+      });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Add margins
+      const margin = 10;
+      const availableWidth = pdfWidth - (2 * margin);
+      const availableHeight = pdfHeight - (2 * margin);
+
+      const canvasAspectRatio = canvas.width / canvas.height;
+
+      // Calculate dimensions to fit within one page with margins
+      let imgWidth = availableWidth;
+      let imgHeight = imgWidth / canvasAspectRatio;
+
+      // If still too tall, scale down to fit height
+      if (imgHeight > availableHeight) {
+        imgHeight = availableHeight;
+        imgWidth = imgHeight * canvasAspectRatio;
+      }
+
+      // Center the image on the page
+      const xOffset = (pdfWidth - imgWidth) / 2;
+      const yOffset = (pdfHeight - imgHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
+      pdf.save(`RCPT-${receiptToPrint.order.id.replace('ORD', 'INV')}.pdf`);
+
+      toast({ title: 'Success', description: 'Receipt PDF has been downloaded.' });
+    } catch (error) {
+      console.error('Failed to generate receipt:', error);
+      toast({ title: 'Error', description: 'Failed to generate receipt PDF.', variant: 'destructive' });
+    } finally {
+      setIsReceiptLoading(false);
+      setReceiptToPrint(null);
+    }
+  };
+
+  useEffect(() => {
+    if (receiptToPrint) {
+      handlePrintReceipt();
+    }
+  }, [receiptToPrint]);
+
+  return (
+    <div className="p-4 space-y-4">
+      <h1 className="text-3xl font-bold">Invoices</h1>
+      <div className="flex justify-end items-center">
+        <Input
+          placeholder="Search by Invoice ID or Customer Name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 rounded-t-lg border-b-0 bg-muted/50">
+            <TabsTrigger value="credit">Credit Invoices ({creditInvoices.length})</TabsTrigger>
+            <TabsTrigger value="fullPaid">Full Paid Invoices ({fullPaidInvoices.length})</TabsTrigger>
+            <TabsTrigger value="deleted">Deleted Orders ({deletedInvoices.length})</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="credit" className="mt-0">
+            <InvoiceTable invoices={creditInvoices} searchTerm={searchTerm} sortConfig={sortConfig} requestSort={requestSort} getSortIndicator={getSortIndicator} setSelectedInvoice={setSelectedInvoice} setIsSheetOpen={setIsSheetOpen} setTabValue={setTabValue} handleRestoreOrder={handleRestoreOrder} handleDownloadInvoice={handleDownloadInvoice} handlePermanentDelete={handlePermanentDelete} />
+          </TabsContent>
+          <TabsContent value="fullPaid" className="mt-0">
+            <InvoiceTable invoices={fullPaidInvoices} searchTerm={searchTerm} sortConfig={sortConfig} requestSort={requestSort} getSortIndicator={getSortIndicator} setSelectedInvoice={setSelectedInvoice} setIsSheetOpen={setIsSheetOpen} setTabValue={setTabValue} handleRestoreOrder={handleRestoreOrder} handleDownloadInvoice={handleDownloadInvoice} handlePermanentDelete={handlePermanentDelete} />
+          </TabsContent>
+          <TabsContent value="deleted" className="mt-0">
+            <InvoiceTable invoices={deletedInvoices} searchTerm={searchTerm} sortConfig={sortConfig} requestSort={requestSort} getSortIndicator={getSortIndicator} setSelectedInvoice={setSelectedInvoice} setIsSheetOpen={setIsSheetOpen} setTabValue={setTabValue} handleRestoreOrder={handleRestoreOrder} handleDownloadInvoice={handleDownloadInvoice} handlePermanentDelete={handlePermanentDelete} />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="w-full sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>{selectedInvoice ? `Invoice ${selectedInvoice.id}` : 'Invoice Details'}</SheetTitle>
+            <SheetDescription>Review details and record payments for this invoice.</SheetDescription>
+          </SheetHeader>
+
+          {selectedInvoice && (
+            <div className="h-full pt-4 flex flex flex-col">
+              <Tabs value={tabValue} onValueChange={setTabValue} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="payments">Payments</TabsTrigger>
+                  <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+
+                {/* PAYMENT FORM — NOW VISIBLE */}
+                <TabsContent value="payments" className="mt-4 space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Invoice: {selectedInvoice.id.replace('ORD', 'INV')}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Manage payments for {selectedInvoice.customerName}.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-foreground">   {/* ← THIS LINE FIXES COLOR */}
+                      <div className="flex justify-between">
+                        <span>Previous Balance:</span>
+                        <span>{formatCurrency(selectedInvoice.previousBalance ?? 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Current Bill:</span>
+                        <span>{formatCurrency(selectedInvoice.grandTotal - (selectedInvoice.previousBalance ?? 0))}</span>
+                      </div>
+                      <div className="flex justify-between font-bold">
+                        <span>Total:</span>
+                        <span>{formatCurrency(selectedInvoice.grandTotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-bold pt-2">
+                        <span>Balance Due:</span>
+                        <span className={`text-2xl font-bold ${selectedInvoice.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {selectedInvoice.balanceDue > 0
+                            ? formatCurrency(selectedInvoice.balanceDue)
+                            : 'NIL'
+                          }
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Separator className="my-4" />
+                  <Card>
+                    <CardHeader><CardTitle>Record New Payment</CardTitle></CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleRecordPayment} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Amount to Pay</Label>
+                          <Input type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div><Label>Date</Label><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} required /></div>
+                          <div>
+                            <Label>Method</Label>
+                            <Select value={paymentMethod} onValueChange={setPaymentMode}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Cash">Cash</SelectItem>
+                                <SelectItem value="UPI">UPI</SelectItem>
+                                <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div><Label>Notes (Optional)</Label><Input value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} /></div>
+                        <Button type="submit" className="w-full" disabled={isPaymentLoading}>
+                          {isPaymentLoading ? 'Recording...' : 'Record Payment'}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* HISTORY — NOW SHOWS CORRECT DATES & WORKING BUTTONS */}
+                <TabsContent value="history" className="mt-4 space-y-4">
+                  <Card>
+                    <CardHeader><CardTitle>Payment History</CardTitle></CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Method</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedInvoice.payments?.length > 0 ? selectedInvoice.payments.map(payment => (
+                            <TableRow key={payment.id}>
+                              <TableCell>{formatDate(payment.date)}</TableCell>
+                              <TableCell>{formatCurrency(payment.amount)}</TableCell>
+                              <TableCell>{payment.mode}</TableCell>
+                              <TableCell className="text-right">
+                                <Button size="sm" variant="ghost" onClick={() => handleSharePayment(payment, selectedInvoice)}>
+                                  <MessageCircle className="h-4 w-4 text-green-600" />
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => handleDownloadReceipt(payment, selectedInvoice)}>
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button size="sm" variant="ghost" disabled={isPaymentLoading}>
+                                      <Trash2 className="h-4 w-4 text-red-600" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Payment Receipt</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete this payment of {formatCurrency(payment.amount)} dated {formatDate(payment.date)}?
+                                        This will recalculate the balance due and cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeletePayment(payment, selectedInvoice)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </TableCell>
+                            </TableRow>
+                          )) : (
+                            <TableRow><TableCell colSpan={4} className="text-center">No payments yet</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Your receipt modal unchanged */}
+      {/* Hidden Receipt Template for Capture */}
+      {receiptToPrint && (
+        <div style={{ position: 'fixed', left: '-200vw', top: 0, zIndex: -1 }}>
+          <ReceiptTemplate
+            receiptRef={receiptRef}
+            order={receiptToPrint.order}
+            customer={customers.find(c => c.id === receiptToPrint.order.customerId)}
+            payment={receiptToPrint.payment}
+            historicalPayments={receiptToPrint.historicalPayments}
+            logoUrl={logoUrl}
+          />
+        </div>
+      )}
+    </div>
+  );
+};

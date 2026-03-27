@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { PlusCircle, MoreHorizontal, ArrowUpDown, CreditCard, Loader2, Phone } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ArrowUpDown, CreditCard, Loader2, Phone, FileDown } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
@@ -134,7 +136,7 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
 
-     useEffect(() => {
+    useEffect(() => {
         setIsMounted(true);
     }, []);
 
@@ -181,7 +183,7 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
     const filteredCustomers = sortedCustomers.filter(customer =>
         customer.name.toLowerCase().includes(search.toLowerCase())
     );
-    
+
     const handleCustomerSaved = (savedCustomer: Customer) => {
         const exists = customers.some(c => c.id === savedCustomer.id);
         if (exists) {
@@ -203,21 +205,189 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
                 description: `${customerToDelete.name} has been removed.`,
                 variant: "destructive"
             });
-        } catch(e) {
-             toast({
+        } catch (e) {
+            toast({
                 title: "Error deleting customer",
                 description: "Could not delete customer.",
                 variant: "destructive"
             });
         }
     };
-    
+
     const openBulkPaymentDialog = (customer: Customer) => {
         const customerOrders = orders
             .filter(o => o.customerId === customer.id && (o.balanceDue ?? 0) > 0)
             .sort((a, b) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime()); // oldest first
         setCustomerForBulkPayment({ ...customer, orders: customerOrders });
         setIsBulkPaymentOpen(true);
+    };
+
+    const handleDownloadCustomerOrders = (customer: Customer) => {
+        const customerOrders = orders
+            .filter(o => o.customerId === customer.id && o.status !== 'Deleted' && o.status !== 'Canceled')
+            .sort((a, b) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime());
+
+        if (customerOrders.length === 0) {
+            toast({ title: 'No Orders Found', description: `No orders found for ${customer.name}.`, variant: 'destructive' });
+            return;
+        }
+
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const formatDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const formatCurrency = (n: number) => `Rs.${n.toFixed(2)}`;
+
+        // ── Header ──────────────────────────────────────────────────────────
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('AB Agency', 14, 18);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('No.1, Ayyanchery main road, Ayyanchery, Urapakkam, Chennai - 603210', 14, 24);
+        doc.text('MOB: 95511 95505 / 95001 82975', 14, 29);
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Customer Order Statement', pageWidth - 14, 18, { align: 'right' });
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Generated: ${formatDate(new Date().toISOString())}`, pageWidth - 14, 24, { align: 'right' });
+
+        // Divider
+        doc.setDrawColor(100, 116, 139);
+        doc.setLineWidth(0.5);
+        doc.line(14, 33, pageWidth - 14, 33);
+
+        // ── Customer Info ────────────────────────────────────────────────────
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Customer:', 14, 40);
+        doc.setFont('helvetica', 'normal');
+        doc.text(customer.name, 40, 40);
+        if (customer.phone) { doc.text(`Phone: ${customer.phone}`, 40, 46); }
+        if (customer.address) {
+            const addrLines = doc.splitTextToSize(customer.address, 100);
+            doc.text(addrLines, 40, 52);
+        }
+
+        let cursorY = 62;
+
+        // ── Per-order sections ───────────────────────────────────────────────
+        customerOrders.forEach((order, idx) => {
+            // Page break check
+            if (cursorY > 240) {
+                doc.addPage();
+                cursorY = 20;
+            }
+
+            // Order header bar
+            doc.setFillColor(71, 85, 105);
+            doc.rect(14, cursorY, pageWidth - 28, 7, 'F');
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            doc.text(`Order #${idx + 1}  |  ${order.id.replace('ORD', 'INV')}  |  ${formatDate(order.orderDate)}  |  Status: ${order.status}`, 16, cursorY + 5);
+            doc.setTextColor(0, 0, 0);
+            cursorY += 9;
+
+            // Items table
+            const tableData = order.items.map(item => {
+                const price = parseFloat(String(item.price)) || 0;
+                let fallbackTotal = price * item.quantity;
+                
+                if (item.totalWeight) {
+                    fallbackTotal = price * item.totalWeight;
+                }
+                
+                if (order.isGstInvoice && item.gst) {
+                    fallbackTotal = fallbackTotal * (1 + item.gst / 100);
+                }
+
+                return [
+                    item.productName || '-',
+                    item.quantity.toString(),
+                    formatCurrency(price),
+                    formatCurrency(item.total ?? fallbackTotal),
+                ];
+            });
+
+            autoTable(doc, {
+                startY: cursorY,
+                head: [['Item', 'Qty', 'Unit Price', 'Total']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [148, 163, 184], textColor: 0, fontStyle: 'bold', fontSize: 8 },
+                bodyStyles: { fontSize: 8 },
+                columnStyles: { 0: { cellWidth: 80 }, 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+                margin: { left: 14, right: 14 },
+            });
+
+            cursorY = (doc as any).lastAutoTable.finalY + 3;
+
+            // Order totals (right-aligned)
+            const totalsX = pageWidth - 14;
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Subtotal: ${formatCurrency(order.total)}`, totalsX, cursorY, { align: 'right' });
+            cursorY += 5;
+            if (order.discount) {
+                doc.text(`Discount: -${formatCurrency(order.discount)}`, totalsX, cursorY, { align: 'right' });
+                cursorY += 5;
+            }
+            if (order.deliveryFees) {
+                doc.text(`Delivery: ${formatCurrency(order.deliveryFees)}`, totalsX, cursorY, { align: 'right' });
+                cursorY += 5;
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Grand Total: ${formatCurrency(order.grandTotal)}`, totalsX, cursorY, { align: 'right' });
+            cursorY += 5;
+            const amountPaid = order.grandTotal - (order.balanceDue ?? 0);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Paid: ${formatCurrency(amountPaid)}`, totalsX, cursorY, { align: 'right' });
+            cursorY += 5;
+            const balColor = (order.balanceDue ?? 0) > 0 ? [220, 38, 38] : [22, 163, 74];
+            doc.setTextColor(balColor[0], balColor[1], balColor[2]);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Balance Due: ${formatCurrency(order.balanceDue ?? 0)}`, totalsX, cursorY, { align: 'right' });
+            doc.setTextColor(0, 0, 0);
+            cursorY += 10;
+        });
+
+        // ── Summary Section ──────────────────────────────────────────────────
+        if (cursorY > 230) { doc.addPage(); cursorY = 20; }
+
+        doc.setDrawColor(100, 116, 139);
+        doc.line(14, cursorY, pageWidth - 14, cursorY);
+        cursorY += 6;
+
+        const totalGrand = customerOrders.reduce((s, o) => s + (o.total - (o.discount ?? 0) + (o.deliveryFees ?? 0)), 0);
+        const totalPaid = customerOrders.reduce((s, o) => s + (o.grandTotal - (o.balanceDue ?? 0)), 0);
+        const totalBalance = customerOrders.length > 0 ? (customerOrders[customerOrders.length - 1].balanceDue ?? 0) : 0;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Summary', 14, cursorY);
+        cursorY += 6;
+
+        autoTable(doc, {
+            startY: cursorY,
+            head: [['Total Orders', 'Total Value', 'Total Paid', 'Outstanding Balance']],
+            body: [[
+                customerOrders.length.toString(),
+                formatCurrency(totalGrand),
+                formatCurrency(totalPaid),
+                formatCurrency(totalBalance),
+            ]],
+            theme: 'grid',
+            headStyles: { fillColor: [71, 85, 105], fontSize: 9 },
+            bodyStyles: { fontSize: 9, fontStyle: 'bold' },
+            columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', textColor: totalBalance > 0 ? [220, 38, 38] : [22, 163, 74] } },
+            margin: { left: 14, right: 14 },
+        });
+
+        const safeName = customer.name.replace(/[^a-z0-9]/gi, '_');
+        doc.save(`${safeName}_Orders_Statement.pdf`);
+        toast({ title: 'Downloaded!', description: `Order statement for ${customer.name} saved.` });
     };
 
     if (!isMounted) {
@@ -256,7 +426,7 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
                     className="max-w-sm"
                 />
             </div>
-            
+
             {/* Desktop Table View */}
             <div className="hidden md:block rounded-lg border shadow-sm">
                 <Table>
@@ -269,11 +439,11 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
                             </TableHead>
                             <TableHead>Phone</TableHead>
                             <TableHead>
-                               <Button variant="ghost" onClick={() => requestSort('transactionHistory.totalSpent')}>
+                                <Button variant="ghost" onClick={() => requestSort('transactionHistory.totalSpent')}>
                                     Total Ordered <ArrowUpDown className="ml-2 h-4 w-4" />
                                 </Button>
                             </TableHead>
-                             <TableHead>Last Purchase</TableHead>
+                            <TableHead>Last Purchase</TableHead>
                             <TableHead>Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -305,6 +475,10 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
                                                 <CreditCard className="mr-2 h-4 w-4" />
                                                 Record Bulk Payment
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleDownloadCustomerOrders(customer)}>
+                                                <FileDown className="mr-2 h-4 w-4" />
+                                                Download All Orders
+                                            </DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => setCustomerToDelete(customer)} className="text-red-600">Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -314,7 +488,7 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
                     </TableBody>
                 </Table>
             </div>
-            
+
             {/* Mobile Card View */}
             <div className="grid gap-4 md:hidden">
                 {filteredCustomers.map((customer) => (
@@ -330,13 +504,17 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                         <DropdownMenuItem onClick={() => { setCustomerToEdit(customer); setIsAddDialogOpen(true); }}>Edit</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => { setCustomerToEdit(customer); setIsAddDialogOpen(true); }}>Edit</DropdownMenuItem>
                                         <DropdownMenuItem asChild>
                                             <Link href={`/customers/${customer.id}`}>View Details</Link>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => openBulkPaymentDialog(customer)}>
                                             <CreditCard className="mr-2 h-4 w-4" />
                                             Record Bulk Payment
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleDownloadCustomerOrders(customer)}>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Download All Orders
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setCustomerToDelete(customer)} className="text-red-600">Delete</DropdownMenuItem>
                                     </DropdownMenuContent>
@@ -364,31 +542,31 @@ export function CustomersClient({ customers: initialCustomers, orders: initialOr
             </div>
 
 
-            <AddCustomerDialog 
-                isOpen={isAddDialogOpen} 
-                onOpenChange={setIsAddDialogOpen} 
-                onCustomerAdded={handleCustomerSaved} 
+            <AddCustomerDialog
+                isOpen={isAddDialogOpen}
+                onOpenChange={setIsAddDialogOpen}
+                onCustomerAdded={handleCustomerSaved}
                 existingCustomer={customerToEdit}
             />
 
             <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the customer "{customerToDelete?.name}".
-                    </AlertDialogDescription>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the customer "{customerToDelete?.name}".
+                        </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteCustomer}>Delete</AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteCustomer}>Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            
+
             {isBulkPaymentOpen && (
-                <BulkPaymentDialog 
-                    isOpen={isBulkPaymentOpen} 
+                <BulkPaymentDialog
+                    isOpen={isBulkPaymentOpen}
                     onOpenChange={setIsBulkPaymentOpen}
                     customer={customerForBulkPayment}
                     onPaymentSuccess={refreshData}
@@ -414,7 +592,7 @@ function BulkPaymentDialog({ isOpen, onOpenChange, customer, onPaymentSuccess }:
     const { toast } = useToast();
 
     const outstandingInvoices = useMemo(() => customer?.orders ?? [], [customer]);
-    
+
     const { totalSelected, remainingToAllocate } = useMemo(() => {
         const paymentAmount = parseFloat(amount) || 0;
         let totalSelected = 0;
@@ -436,7 +614,7 @@ function BulkPaymentDialog({ isOpen, onOpenChange, customer, onPaymentSuccess }:
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!customer) return;
-        
+
         setIsProcessing(true);
         try {
             const paymentAmount = parseFloat(amount);
@@ -448,10 +626,10 @@ function BulkPaymentDialog({ isOpen, onOpenChange, customer, onPaymentSuccess }:
             if (invoicesToPay.length === 0) {
                 throw new Error("Please select at least one invoice to pay.");
             }
-            
+
             const totalAmountOfSelectedInvoices = invoicesToPay.reduce((sum, inv) => sum + (inv.balanceDue ?? 0), 0);
             if (paymentAmount > totalAmountOfSelectedInvoices) {
-                 toast({
+                toast({
                     title: "Payment amount too high",
                     description: `Payment of ${formatNumber(paymentAmount)} is more than the selected invoices total of ${formatNumber(totalAmountOfSelectedInvoices)}.`,
                     variant: 'destructive',
@@ -473,7 +651,7 @@ function BulkPaymentDialog({ isOpen, onOpenChange, customer, onPaymentSuccess }:
                     grandTotal: o.grandTotal,
                 })),
             });
-            
+
             toast({
                 title: "Bulk Payment Successful",
                 description: result.summary,
@@ -531,12 +709,12 @@ function BulkPaymentDialog({ isOpen, onOpenChange, customer, onPaymentSuccess }:
                                     </SelectContent>
                                 </Select>
                             </div>
-                             <div className="space-y-2">
+                            <div className="space-y-2">
                                 <Label htmlFor="bulk-notes">Notes (Optional)</Label>
                                 <Input id="bulk-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g., Consolidated payment" />
                             </div>
                         </div>
-                        
+
                         <div>
                             <h4 className="font-medium my-2">Outstanding Invoices</h4>
                             <ScrollArea className="h-64 border rounded-md">
@@ -567,7 +745,7 @@ function BulkPaymentDialog({ isOpen, onOpenChange, customer, onPaymentSuccess }:
                                 </Table>
                             </ScrollArea>
                         </div>
-                         <div className="grid grid-cols-2 gap-4 text-sm mt-2 p-3 bg-muted rounded-md">
+                        <div className="grid grid-cols-2 gap-4 text-sm mt-2 p-3 bg-muted rounded-md">
                             <div>Total Selected: <Badge variant="secondary">{formatNumber(totalSelected)}</Badge></div>
                             <div className={remainingToAllocate < 0 ? 'text-red-600' : ''}>
                                 {remainingToAllocate < 0 ? 'Over Allocated:' : 'Remaining:'} <Badge variant={remainingToAllocate < 0 ? 'destructive' : 'default'}>{formatNumber(Math.abs(remainingToAllocate))}</Badge>
@@ -578,7 +756,7 @@ function BulkPaymentDialog({ isOpen, onOpenChange, customer, onPaymentSuccess }:
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                         <Button type="submit" disabled={isProcessing || Object.values(selectedInvoices).every(v => !v)}>
-                             {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Allocate Payment
                         </Button>
                     </DialogFooter>

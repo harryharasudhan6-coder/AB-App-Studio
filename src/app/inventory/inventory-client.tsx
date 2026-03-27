@@ -46,6 +46,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
   const [gst, setGst] = useState(0);
   const [reorderPoint, setReorderPoint] = useState(0);
   const [calculationType, setCalculationType] = useState<CalculationType>('Per Unit');
+  const [weightPerUnit, setWeightPerUnit] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,6 +72,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
         gst,
         reorderPoint,
         calculationType,
+        ...(category === 'Rods & Rings' || category === 'Savukku Stick') && { weightPerUnit },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -82,7 +84,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
         title: "Success",
         description: `${name} has been added to the inventory.`,
       });
-      
+
       // Reset form
       setName('');
       setSku('');
@@ -93,6 +95,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
       setGst(0);
       setReorderPoint(0);
       setCalculationType('Per Unit');
+      setWeightPerUnit(0);
 
     } catch (error) {
       console.error('Failed to add product:', error);
@@ -135,70 +138,71 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
                   <SelectItem value="General">General</SelectItem>
                   <SelectItem value="Red Bricks">Red Bricks</SelectItem>
                   <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
+                  <SelectItem value="Savukku Stick">Savukku Stick</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="stock" className="text-right">Stock*</Label>
-              <Input 
-                id="stock" 
-                type="number" 
-                value={stock} 
-                onChange={(e) => setStock(parseInt(e.target.value) || 0)} 
-                className="col-span-3" 
-                min="0" 
-                required 
+              <Input
+                id="stock"
+                type="number"
+                value={stock}
+                onChange={(e) => setStock(parseInt(e.target.value) || 0)}
+                className="col-span-3"
+                min="0"
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="salePrice" className="text-right">Sale Price*</Label>
-              <Input 
-                id="salePrice" 
-                type="number" 
-                value={salePrice} 
-                onChange={(e) => setSalePrice(parseFloat(e.target.value) || 0)} 
-                className="col-span-3" 
-                step="0.01" 
-                min="0" 
-                required 
+              <Input
+                id="salePrice"
+                type="number"
+                value={salePrice}
+                onChange={(e) => setSalePrice(parseFloat(e.target.value) || 0)}
+                className="col-span-3"
+                step="0.01"
+                min="0"
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="costPrice" className="text-right">Cost Price</Label>
-              <Input 
-                id="costPrice" 
-                type="number" 
-                value={costPrice} 
-                onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)} 
-                className="col-span-3" 
-                step="0.01" 
-                min="0" 
+              <Input
+                id="costPrice"
+                type="number"
+                value={costPrice}
+                onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)}
+                className="col-span-3"
+                step="0.01"
+                min="0"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="gst" className="text-right">GST%*</Label>
-              <Input 
-                id="gst" 
-                type="number" 
-                value={gst} 
-                onChange={(e) => setGst(parseFloat(e.target.value) || 0)} 
-                className="col-span-3" 
-                step="0.01" 
-                min="0" 
-                max="100" 
+              <Input
+                id="gst"
+                type="number"
+                value={gst}
+                onChange={(e) => setGst(parseFloat(e.target.value) || 0)}
+                className="col-span-3"
+                step="0.01"
+                min="0"
+                max="100"
                 placeholder="e.g., 18"
-                required 
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="reorderPoint" className="text-right">Reorder Point</Label>
-              <Input 
+              <Input
                 id="reorderPoint"
-				name="reorderPoint"				
-                type="number" 
-                value={reorderPoint} 
-                onChange={(e) => setReorderPoint(parseInt(e.target.value) || 0)} 
-                className="col-span-3" 
+                name="reorderPoint"
+                type="number"
+                value={reorderPoint}
+                onChange={(e) => setReorderPoint(parseInt(e.target.value) || 0)}
+                className="col-span-3"
                 min="0"
               />
             </div>
@@ -215,6 +219,21 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
                 </SelectContent>
               </Select>
             </div>
+            {(category === 'Rods & Rings' || category === 'Savukku Stick') && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="weightPerUnit" className="text-right">Weight/Unit (Kg)</Label>
+                <Input
+                  id="weightPerUnit"
+                  type="number"
+                  value={weightPerUnit}
+                  onChange={(e) => setWeightPerUnit(parseFloat(e.target.value) || 0)}
+                  className="col-span-3"
+                  step="0.01"
+                  min="0"
+                  placeholder="e.g., 10.69"
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -257,6 +276,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
         gst: productToEdit.gst || 0,
         reorderPoint: productToEdit.reorderPoint || 0,
         calculationType: productToEdit.calculationType || 'Per Unit',
+        weightPerUnit: productToEdit.weightPerUnit || 0,
       });
     } else {
       setEditData({});
@@ -303,6 +323,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
         reorderPoint: editData.reorderPoint ?? 0,
         calculationType: editData.calculationType || 'Per Unit',
         updatedAt: new Date().toISOString(),
+        ...(( editData.category === 'Rods & Rings' || editData.category === 'Savukku Stick') && { weightPerUnit: editData.weightPerUnit ?? 0 }),
       };
 
       const updatedProduct: Product = {
@@ -332,7 +353,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
       setLoading(false);
     }
   };
-  
+
   if (!productToEdit) return null;
 
   return (
@@ -348,29 +369,29 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-name" className="text-right">Name*</Label>
-              <Input 
-                id="edit-name" 
-                value={editData.name || ''} 
-                onChange={(e) => handleChange('name', e.target.value)} 
-                className="col-span-3" 
-                required 
+              <Input
+                id="edit-name"
+                value={editData.name || ''}
+                onChange={(e) => handleChange('name', e.target.value)}
+                className="col-span-3"
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-sku" className="text-right">SKU*</Label>
-              <Input 
-                id="edit-sku" 
-                value={editData.sku || ''} 
-                onChange={(e) => handleChange('sku', e.target.value)} 
-                className="col-span-3" 
-                required 
+              <Input
+                id="edit-sku"
+                value={editData.sku || ''}
+                onChange={(e) => handleChange('sku', e.target.value)}
+                className="col-span-3"
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-category" className="text-right">Category*</Label>
-              <Select 
-                onValueChange={(value: ProductCategory) => handleChange('category', value)} 
-                value={editData.category as ProductCategory || ''} 
+              <Select
+                onValueChange={(value: ProductCategory) => handleChange('category', value)}
+                value={editData.category as ProductCategory || ''}
                 required
               >
                 <SelectTrigger className="col-span-3">
@@ -380,77 +401,78 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
                   <SelectItem value="General">General</SelectItem>
                   <SelectItem value="Red Bricks">Red Bricks</SelectItem>
                   <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
+                  <SelectItem value="Savukku Stick">Savukku Stick</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-stock" className="text-right">Stock*</Label>
-              <Input 
-                id="edit-stock" 
-                type="number" 
-                value={editData.stock || 0} 
-                onChange={(e) => handleChange('stock', parseInt(e.target.value) || 0)} 
-                className="col-span-3" 
-                min="0" 
-                required 
+              <Input
+                id="edit-stock"
+                type="number"
+                value={editData.stock || 0}
+                onChange={(e) => handleChange('stock', parseInt(e.target.value) || 0)}
+                className="col-span-3"
+                min="0"
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-salePrice" className="text-right">Sale Price*</Label>
-              <Input 
-                id="edit-salePrice" 
-                type="number" 
-                value={editData.salePrice || 0} 
-                onChange={(e) => handleChange('salePrice', parseFloat(e.target.value) || 0)} 
-                className="col-span-3" 
-                step="0.01" 
-                min="0" 
-                required 
+              <Input
+                id="edit-salePrice"
+                type="number"
+                value={editData.salePrice || 0}
+                onChange={(e) => handleChange('salePrice', parseFloat(e.target.value) || 0)}
+                className="col-span-3"
+                step="0.01"
+                min="0"
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-costPrice" className="text-right">Cost Price</Label>
-              <Input 
-                id="edit-costPrice" 
-                type="number" 
-                value={editData.costPrice || 0} 
-                onChange={(e) => handleChange('costPrice', parseFloat(e.target.value) || 0)} 
-                className="col-span-3" 
-                step="0.01" 
-                min="0" 
+              <Input
+                id="edit-costPrice"
+                type="number"
+                value={editData.costPrice || 0}
+                onChange={(e) => handleChange('costPrice', parseFloat(e.target.value) || 0)}
+                className="col-span-3"
+                step="0.01"
+                min="0"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-gst" className="text-right">GST%*</Label>
-              <Input 
-                id="edit-gst" 
-                type="number" 
-                value={editData.gst || 0} 
-                onChange={(e) => handleChange('gst', parseFloat(e.target.value) || 0)} 
-                className="col-span-3" 
-                step="0.01" 
-                min="0" 
-                max="100" 
+              <Input
+                id="edit-gst"
+                type="number"
+                value={editData.gst || 0}
+                onChange={(e) => handleChange('gst', parseFloat(e.target.value) || 0)}
+                className="col-span-3"
+                step="0.01"
+                min="0"
+                max="100"
                 placeholder="e.g., 18"
-                required 
+                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-reorderPoint" className="text-right">Reorder Point</Label>
-              <Input 
-                id="edit-reorderPoint" 
+              <Input
+                id="edit-reorderPoint"
                 name="reorderPoint"
-				type="number" 
-                value={editData.reorderPoint || 0} 
-                onChange={(e) => handleChange('reorderPoint', parseInt(e.target.value) || 0)} 
-                className="col-span-3" 
+                type="number"
+                value={editData.reorderPoint || 0}
+                onChange={(e) => handleChange('reorderPoint', parseInt(e.target.value) || 0)}
+                className="col-span-3"
                 min="0"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-type" className="text-right">Calculation Type</Label>
-              <Select 
-                onValueChange={(value: CalculationType) => handleChange('calculationType', value)} 
+              <Select
+                onValueChange={(value: CalculationType) => handleChange('calculationType', value)}
                 value={editData.calculationType || 'Per Unit'}
               >
                 <SelectTrigger className="col-span-3">
@@ -463,6 +485,21 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
                 </SelectContent>
               </Select>
             </div>
+            {(editData.category === 'Rods & Rings' || editData.category === 'Savukku Stick') && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-weightPerUnit" className="text-right">Weight/Unit (Kg)</Label>
+                <Input
+                  id="edit-weightPerUnit"
+                  type="number"
+                  value={editData.weightPerUnit || 0}
+                  onChange={(e) => handleChange('weightPerUnit', parseFloat(e.target.value) || 0)}
+                  className="col-span-3"
+                  step="0.01"
+                  min="0"
+                  placeholder="e.g., 10.69"
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -491,70 +528,70 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
   const [filterCategory, setFilterCategory] = useState<ProductCategory | 'all'>('all');
   const [firebaseStatus, setFirebaseStatus] = useState({ connected: true, message: "" });
   const { toast } = useToast();
-  
-// TEMP TEST FOR STEP 2: Enhanced errors
-useEffect(() => {
-  console.log('🧪 Step 2: Starting fetch tests...');
 
-  // Products (likely error here)
-  getProducts().then((products) => {
-    console.log('✅ Fetched Products:', products.length, 'items. First one:', products[0] || 'Empty');
-  }).catch((error) => {
-    console.error('❌ Products fetch error - Full details:', {
-      message: error.message || 'No message',
-      code: error.code || 'Unknown',
-      name: error.name || 'Unknown',
-      stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
+  // TEMP TEST FOR STEP 2: Enhanced errors
+  useEffect(() => {
+    console.log('🧪 Step 2: Starting fetch tests...');
+
+    // Products (likely error here)
+    getProducts().then((products) => {
+      console.log('✅ Fetched Products:', products.length, 'items. First one:', products[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Products fetch error - Full details:', {
+        message: error.message || 'No message',
+        code: error.code || 'Unknown',
+        name: error.name || 'Unknown',
+        stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
+      });
     });
-  });
 
-  // Orders (likely error here)
-  getOrders().then((orders) => {
-    console.log('✅ Fetched Orders:', orders.length, 'items. First one:', orders[0] || 'Empty');
-  }).catch((error) => {
-    console.error('❌ Orders fetch error - Full details:', {
-      message: error.message || 'No message',
-      code: error.code || 'Unknown',
-      name: error.name || 'Unknown',
-      stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
+    // Orders (likely error here)
+    getOrders().then((orders) => {
+      console.log('✅ Fetched Orders:', orders.length, 'items. First one:', orders[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Orders fetch error - Full details:', {
+        message: error.message || 'No message',
+        code: error.code || 'Unknown',
+        name: error.name || 'Unknown',
+        stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
+      });
     });
-  });
 
-  // Invoices (likely error here, since based on orders)
-  getInvoices().then((invoices) => {
-    console.log('✅ Fetched Invoices:', invoices.length, 'items. First one:', invoices[0] || 'Empty');
-  }).catch((error) => {
-    console.error('❌ Invoices fetch error - Full details:', {
-      message: error.message || 'No message',
-      code: error.code || 'Unknown',
-      name: error.name || 'Unknown',
-      stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
+    // Invoices (likely error here, since based on orders)
+    getInvoices().then((invoices) => {
+      console.log('✅ Fetched Invoices:', invoices.length, 'items. First one:', invoices[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Invoices fetch error - Full details:', {
+        message: error.message || 'No message',
+        code: error.code || 'Unknown',
+        name: error.name || 'Unknown',
+        stack: error.stack ? error.stack.substring(0, 200) + '...' : 'No stack'
+      });
     });
-  });
 
-  // Customers (already working - keep simple)
-  getCustomers().then((customers) => {
-    console.log('✅ Fetched Customers:', customers.length, 'items. First one:', customers[0] || 'Empty');
-  }).catch((error) => {
-    console.error('❌ Customers fetch error:', error);
-  });
+    // Customers (already working - keep simple)
+    getCustomers().then((customers) => {
+      console.log('✅ Fetched Customers:', customers.length, 'items. First one:', customers[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Customers fetch error:', error);
+    });
 
-  // Suppliers (already working)
-  getSuppliers().then((suppliers) => {
-    console.log('✅ Fetched Suppliers:', suppliers.length, 'items. First one:', suppliers[0] || 'Empty');
-  }).catch((error) => {
-    console.error('❌ Suppliers fetch error:', error);
-  });
+    // Suppliers (already working)
+    getSuppliers().then((suppliers) => {
+      console.log('✅ Fetched Suppliers:', suppliers.length, 'items. First one:', suppliers[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Suppliers fetch error:', error);
+    });
 
-  // Purchases (already working)
-  getPurchases().then((purchases) => {
-    console.log('✅ Fetched Purchases:', purchases.length, 'items. First one:', purchases[0] || 'Empty');
-  }).catch((error) => {
-    console.error('❌ Purchases fetch error:', error);
-  });
+    // Purchases (already working)
+    getPurchases().then((purchases) => {
+      console.log('✅ Fetched Purchases:', purchases.length, 'items. First one:', purchases[0] || 'Empty');
+    }).catch((error) => {
+      console.error('❌ Purchases fetch error:', error);
+    });
 
-  console.log('🧪 Step 2: Fetch tests complete.');
-}, []);
+    console.log('🧪 Step 2: Fetch tests complete.');
+  }, []);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -621,38 +658,38 @@ useEffect(() => {
     }
   };
 
-const filteredProducts = useMemo(() => {
-  console.log('🔍 Filter DEBUG: Starting with raw products:', products.length, 'Names:', products.map(p => p.name).join(', '));  // TEMP
+  const filteredProducts = useMemo(() => {
+    console.log('🔍 Filter DEBUG: Starting with raw products:', products.length, 'Names:', products.map(p => p.name).join(', '));  // TEMP
 
-  let filtered = products;
+    let filtered = products;
 
-  // Category filter
-  if (filterCategory !== 'all') {
-    filtered = filtered.filter(product => 
-      (product.category || '').toLowerCase() === filterCategory.toLowerCase()
-    );
-    console.log('🔍 After Category Filter (', filterCategory, '):', filtered.length);  // TEMP
-  }
+    // Category filter
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(product =>
+        (product.category || '').toLowerCase() === filterCategory.toLowerCase()
+      );
+      console.log('🔍 After Category Filter (', filterCategory, '):', filtered.length);  // TEMP
+    }
 
-  // Search filter
-  if (searchTerm) {
-    const lowerSearch = searchTerm.toLowerCase();
-    filtered = filtered.filter(product => 
-      product.name?.toLowerCase().includes(lowerSearch) ||
-      product.sku?.toLowerCase().includes(lowerSearch) ||
-      product.category?.toLowerCase().includes(lowerSearch)
-    );
-    console.log('🔍 After Search Filter (', searchTerm, '):', filtered.length);  // TEMP
-  }
+    // Search filter
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      filtered = filtered.filter(product =>
+        product.name?.toLowerCase().includes(lowerSearch) ||
+        product.sku?.toLowerCase().includes(lowerSearch) ||
+        product.category?.toLowerCase().includes(lowerSearch)
+      );
+      console.log('🔍 After Search Filter (', searchTerm, '):', filtered.length);  // TEMP
+    }
 
-  console.log('🔍 Filter DEBUG: Final filtered:', filtered.length, 'Names:', filtered.map(p => p.name).join(', '));  // TEMP
+    console.log('🔍 Filter DEBUG: Final filtered:', filtered.length, 'Names:', filtered.map(p => p.name).join(', '));  // TEMP
 
-  return filtered.sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return dateB - dateA;  // Newest first
-  });
-}, [products, filterCategory, searchTerm]);
+    return filtered.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;  // Newest first
+    });
+  }, [products, filterCategory, searchTerm]);
 
 
   return (
@@ -670,16 +707,16 @@ const filteredProducts = useMemo(() => {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  onClick={() => setIsAddDialogOpen(true)} 
-                  className="flex items-center gap-2" 
+                <Button
+                  onClick={() => setIsAddDialogOpen(true)}
+                  className="flex items-center gap-2"
                   disabled={!firebaseStatus.connected}
                 >
                   <PlusCircle className="h-5 w-5" /> Add New Product
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={fetchProducts} 
+                <Button
+                  variant="outline"
+                  onClick={fetchProducts}
                   disabled={loading || !firebaseStatus.connected}
                 >
                   {loading ? (
@@ -693,7 +730,7 @@ const filteredProducts = useMemo(() => {
                 </Button>
               </div>
             </div>
-            
+
             {!firebaseStatus.connected && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
@@ -719,6 +756,7 @@ const filteredProducts = useMemo(() => {
                   <SelectItem value="General">General</SelectItem>
                   <SelectItem value="Red Bricks">Red Bricks</SelectItem>
                   <SelectItem value="Rods & Rings">Rods & Rings</SelectItem>
+                  <SelectItem value="Savukku Stick">Savukku Stick</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -750,7 +788,7 @@ const filteredProducts = useMemo(() => {
                       return (
                         <TableRow key={product.id} className="transition-transform hover:-translate-y-px hover:shadow-md">
                           <TableCell className="font-medium">
-                            {product.name} 
+                            {product.name}
                             {product.brand && <span className="text-muted-foreground text-xs">({product.brand})</span>}
                           </TableCell>
                           <TableCell>{product.sku}</TableCell>
@@ -787,7 +825,7 @@ const filteredProducts = useMemo(() => {
                                 >
                                   <Edit className="mr-2 h-4 w-4" /> Edit Product
                                 </DropdownMenuItem>
-                                
+
                                 <DropdownMenuSeparator />
 
                                 <DropdownMenuItem
@@ -916,7 +954,7 @@ const filteredProducts = useMemo(() => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete 
+              This action cannot be undone. This will permanently delete
               product <span className="font-bold">{productToDelete?.name}</span> and remove its data from the database.
             </AlertDialogDescription>
           </AlertDialogHeader>
