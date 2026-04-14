@@ -69,6 +69,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({ isOpen, onOpenChang
         stock,
         salePrice,
         costPrice,
+        cost: costPrice,
         gst,
         reorderPoint,
         calculationType,
@@ -315,7 +316,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({ isOpen, onOpenCha
       const updates: Partial<Product> = {
         name: safeTrim(editData.name),
         sku: safeTrim(editData.sku),
-        category: safeTrim(editData.category as string),
+        category: safeTrim(editData.category as string) as ProductCategory,
         stock: editData.stock ?? 0,
         salePrice: editData.salePrice ?? 0,
         costPrice: editData.costPrice ?? 0,

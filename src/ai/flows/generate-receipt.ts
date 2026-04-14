@@ -8,7 +8,7 @@
  * - GenerateReceiptOutput - The return type for the generateReceipt function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai} from '@/ai/genkit-client';
 import {z} from 'genkit';
 import type { Order, Customer, Payment } from '@/lib/types';
 

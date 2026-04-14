@@ -50,7 +50,7 @@ export async function allocateBulkPayment(input: AllocateBulkPaymentInput): Prom
       await addBulkPayment({
           customerId: input.customerId,
           paymentDate: input.paymentDate,
-          paymentMethod: input.paymentMethod,
+          paymentMethod: input.paymentMethod as any,
           notes: input.notes,
           allocations: allocationResult.allocations.map(alloc => ({
               orderId: alloc.invoiceId.replace('INV', 'ORD'),

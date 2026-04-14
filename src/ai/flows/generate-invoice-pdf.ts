@@ -3,7 +3,7 @@
 /**
  * @fileOverview A flow to generate an invoice PDF from an HTML template.
  */
-import { ai } from '@/ai/genkit';
+import { ai } from '@/ai/genkit-client';
 import { z } from 'genkit';
 import type { Order, Customer } from '@/lib/types';
 
