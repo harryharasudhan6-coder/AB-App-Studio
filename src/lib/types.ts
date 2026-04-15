@@ -29,6 +29,8 @@ export interface Customer {
     totalSpent: number;
     lastPurchaseDate: string;
   };
+  createdAt?: string;
+  updatedAt?: string;
   // Added to support bulk payment dialog
   orders?: Order[];
 }
@@ -83,7 +85,7 @@ export interface OrderItem {
   productId: string;
   productName: string;
   quantity: number;
-  price: string;
+  price: number;
   sku: string;
   cost: number; // Snapshot of cost at time of sale
   gst?: number;  // GST % snapshot
@@ -155,7 +157,8 @@ export interface Order {
   payments?: Payment[];
   balanceDue?: number;
   createdAt?: string | Timestamp;  // Added (optional)
-  updatedAt?: string | Timestamp;  // Added (optional)
+  updatedAt?: string | Timestamp;
+  _isDeleted?: boolean;
 }
 
 // Alerts (Unchanged)

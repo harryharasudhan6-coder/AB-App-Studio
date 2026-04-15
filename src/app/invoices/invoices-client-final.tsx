@@ -91,8 +91,8 @@ const ReceiptTemplate = ({ receiptRef, order, payment, historicalPayments, custo
         </div>
         <div className="flex justify-between bg-slate-50 p-2 rounded">
           <span className="font-bold text-slate-900">Balance Due</span>
-          <span className={`font-bold ${order.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-            {formatCurrency(order.balanceDue)}
+          <span className={`font-bold ${(order.balanceDue ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+			{formatCurrency(order.balanceDue ?? 0)}
           </span>
         </div>
       </div>
@@ -191,8 +191,8 @@ const InvoiceTable = ({
     );
     if (sortConfig.key) {
       result.sort((a, b) => {
-        let aValue = a[sortConfig.key!];
-        let bValue = b[sortConfig.key!];
+        let aValue = (a as any)[sortConfig.key!];
+        let bValue = (b as any)[sortConfig.key!];
         if (sortConfig.key === 'id') {
           aValue = parseInt(a.id.replace(/[^0-9]/g, '')) || 0;
           bValue = parseInt(b.id.replace(/[^0-9]/g, '')) || 0;
@@ -252,16 +252,16 @@ const InvoiceTable = ({
               <TableCell>{invoice.customerName}</TableCell>
               <TableCell className="text-sm text-muted-foreground">{formatDate(invoice.orderDate)}</TableCell>
               <TableCell className="text-right">{formatCurrency(invoice.grandTotal)}</TableCell>
-              <TableCell className={`text-right font-semibold ${invoice.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {formatCurrency(invoice.balanceDue)}
+              <TableCell className={`text-right font-semibold ${(invoice.balanceDue ?? 0)> 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {formatCurrency(invoice.balanceDue ?? 0)}
               </TableCell>
               <TableCell>
-                <Badge variant={invoice.status === 'Paid' ? 'default' : invoice.status === 'Partially Paid' ? 'secondary' : 'outline'}>
+                <Badge variant={(invoice.status as string)=== 'Paid' ? 'default' : (invoice.status as string) === 'Partially Paid' ? 'secondary' : 'outline'}>
                   {invoice.status}
                 </Badge>
               </TableCell>
               <TableCell className="text-center">
-                {invoice.status === 'Deleted' ? (
+                {(invoice.status as string) === 'Deleted' ? (
                   <div className="flex justify-center gap-1">
                     <Button
                       size="sm"
@@ -324,7 +324,7 @@ const InvoiceTable = ({
                     </AlertDialog>
                   </div>
                 ) : (
-                  <Badge variant={invoice.status === 'Full Paid' ? 'default' : 'secondary'} className="capitalize">
+                  <Badge variant={(invoice.status as string) === 'Full Paid' ? 'default' : 'secondary'} className="capitalize">
                     {invoice.status}
                   </Badge>
                 )}
@@ -365,21 +365,21 @@ export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers:
 
   const creditInvoices = useMemo(() =>
     allInvoices.filter(inv =>
-      inv.balanceDue > 0 ||
-      inv.status === 'Pending' ||
-      inv.status === 'Part Payment'
+      (inv.balanceDue ?? 0) > 0 ||
+      (inv.status as string) === 'Pending' ||
+      (inv.status as string) === 'Part Payment'
     ),
     [allInvoices]
   );
   const fullPaidInvoices = useMemo(() =>
     allInvoices.filter(inv =>
-      inv.balanceDue === 0 &&
-      (inv.status === 'Fulfilled' || inv.status === 'Paid')
+      (inv.balanceDue ?? 0) === 0 &&
+      ((inv.status as string) === 'Fulfilled' || (inv.status as string) === 'Paid')
     ),
     [allInvoices]
   );
   const deletedInvoices = useMemo(() =>
-    allInvoices.filter(inv => inv.status === 'Deleted'),
+    allInvoices.filter(inv => (inv.status as string) === 'Deleted'),
     [allInvoices]
   );
 
@@ -403,20 +403,20 @@ export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers:
     if (!selectedInvoice || parseFloat(paymentAmount) <= 0 || isPaymentLoading) return;
     console.log('Selected Invoice:', selectedInvoice); // ← Add this to debug ID
     console.log("About to record payment for order ID →", selectedInvoice.id);
-    console.log("Firestore _id is →", selectedInvoice._id);
+    console.log("Firestore _id is →", (selectedInvoice as any)._id);
     setIsPaymentLoading(true);
     try {
       await addPaymentToOrder(
-        selectedInvoice.customerId,
-        selectedInvoice.id,  // ← ORD-0040
-        {
-          amount: parseFloat(paymentAmount),
-          mode: paymentMethod,
-          date: paymentDate,
-          notes: paymentNotes,
-          recordedBy: 'User'
-        }
-      );
+		selectedInvoice.customerId,
+		selectedInvoice.id,
+		{
+			amount: parseFloat(paymentAmount),
+			mode: paymentMethod,
+			date: paymentDate,
+			notes: paymentNotes,
+			recordedBy: 'User'
+		} as any
+	);
       toast({ title: "Payment Recorded", description: `₹${paymentAmount} recorded.` });
       setPaymentAmount('');
       setPaymentNotes('');
@@ -433,7 +433,7 @@ export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers:
   const handleSharePayment = (payment: Payment, order: Order) => {
     const customer = customers.find(c => c.id === order.customerId);
     if (!customer) return;
-    const message = `Hello ${customer.name}, payment of ₹${payment.amount.toFixed(2)} received for invoice ${order.id.replace('ORD', 'INV')}. Thank you! Balance: ₹${order.balanceDue.toFixed(2)}`;
+    const message = `Hello ${customer.name}, payment of ₹${payment.amount.toFixed(2)} received for invoice ${order.id.replace('ORD', 'INV')}. Thank you! Balance: ₹${(order.balanceDue ?? 0).toFixed(2)}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -555,7 +555,7 @@ export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers:
 
       // Items table
       const tableData = order.items.map(item => [
-        item.name,
+      item.productName,
         item.quantity.toString(),
         `₹${item.price.toFixed(2)}`,
         `₹${(item.quantity * item.price).toFixed(2)}`
@@ -667,7 +667,7 @@ export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers:
       </div>
 
       <div className="border rounded-lg overflow-hidden">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'credit' | 'fullPaid' | 'deleted')} className="w-full">
           <TabsList className="grid w-full grid-cols-3 rounded-t-lg border-b-0 bg-muted/50">
             <TabsTrigger value="credit">Credit Invoices ({creditInvoices.length})</TabsTrigger>
             <TabsTrigger value="fullPaid">Full Paid Invoices ({fullPaidInvoices.length})</TabsTrigger>
@@ -725,9 +725,9 @@ export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers:
                       </div>
                       <div className="flex justify-between text-lg font-bold pt-2">
                         <span>Balance Due:</span>
-                        <span className={`text-2xl font-bold ${selectedInvoice.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          {selectedInvoice.balanceDue > 0
-                            ? formatCurrency(selectedInvoice.balanceDue)
+                        <span className={`text-2xl font-bold ${(selectedInvoice.balanceDue ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+						  {(selectedInvoice.balanceDue ?? 0) > 0
+						   ? formatCurrency(selectedInvoice.balanceDue ?? 0)
                             : 'NIL'
                           }
                         </span>
@@ -747,7 +747,7 @@ export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers:
                           <div><Label>Date</Label><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} required /></div>
                           <div>
                             <Label>Method</Label>
-                            <Select value={paymentMethod} onValueChange={setPaymentMode}>
+                            <Select value={paymentMethod} onValueChange={(val) => setPaymentMode(val as PaymentMode)}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="Cash">Cash</SelectItem>
@@ -781,11 +781,11 @@ export const InvoicesClient = ({ logoUrl, orders: initialOrders = [], customers:
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedInvoice.payments?.length > 0 ? selectedInvoice.payments.map(payment => (
-                            <TableRow key={payment.id}>
-                              <TableCell>{formatDate(payment.date)}</TableCell>
-                              <TableCell>{formatCurrency(payment.amount)}</TableCell>
-                              <TableCell>{payment.mode}</TableCell>
+                          {(selectedInvoice.payments?.length ?? 0) > 0 ? selectedInvoice.payments?.map((payment: any) => (
+							  <TableRow key={payment.id}>
+								<TableCell>{formatDate(payment.date)}</TableCell>
+								<TableCell>{formatCurrency(payment.amount)}</TableCell>
+								<TableCell>{payment.mode}</TableCell>
                               <TableCell className="text-right">
                                 <Button size="sm" variant="ghost" onClick={() => handleSharePayment(payment, selectedInvoice)}>
                                   <MessageCircle className="h-4 w-4 text-green-600" />

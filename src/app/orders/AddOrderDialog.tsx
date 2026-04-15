@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -356,6 +356,8 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                 gst: 0,
                 calculationType: 'Per Unit',
                 category: 'General',
+                sku: 'OB',
+                total: previousBalance,
             }] : items.map(item => {
                 const product = products.find(p => p.id === item.productId);
                 const priceValue = parseFloat(item.price) || 0;
@@ -371,6 +373,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                     gst: gstPercent,
                     calculationType: product?.calculationType,
                     category: product?.category,
+                    sku: product?.sku || '',
                 };
 
                 if (product?.brand) orderItem.brand = product.brand;

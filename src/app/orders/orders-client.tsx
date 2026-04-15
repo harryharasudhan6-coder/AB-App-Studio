@@ -15,6 +15,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { addOrder, addCustomer, deleteOrder as deleteOrderFromDB, getCustomerBalance, getProducts, updateOrder, getCoreOrderData } from '@/lib/data';
+import { startOfWeek, startOfMonth, subMonths, isWithinInterval, type Interval } from 'date-fns';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +27,17 @@ import { startOfWeek, startOfMonth, subMonths, isWithinInterval } from 'date-fns
 import { Skeleton } from '@/components/ui/skeleton';
 import { Combobox } from '@/components/ui/combobox';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { UserOptions } from 'jspdf-autotable';
+
+// This tells TypeScript that jsPDF has the autoTable plugin
+interface jsPDFWithPlugin extends jsPDF {
+  autoTable: (options: UserOptions) => jsPDF;
+  previousAutoTable: {
+    finalY: number;
+  };
+}
 
 type SortKey = keyof Order | 'id' | 'customerName' | 'orderDate' | 'status' | 'grandTotal';
 
@@ -190,7 +202,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
 
         setIsLoading(true);
         try {
-            const doc = new jsPDF();
+            const doc = new jsPDF() as jsPDFWithPlugin;;
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
 
@@ -1043,25 +1055,37 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                 gst: 0,
                 calculationType: 'Per Unit',
                 category: 'General',
+                sku: 'OB',
+                total: previousBalance,
             }] : items.map(item => {
                 const product = products.find(p => p.id === item.productId);
-                const orderItem: Partial<OrderItem> = {
-                    productId: item.productId,
-                    productName: product?.name || 'Unknown',
-                    quantity: parseFloat(item.quantity) || 0,
-                    price: parseFloat(item.price) || 0,
-                    cost: parseFloat(item.cost) || 0,
-                    gst: parseFloat(item.gst) || 0,
-                    calculationType: product?.calculationType,
-                    category: product?.category,
-                };
+                const orderItem: OrderItem = {
+					productId: item.productId,
+					productName: product?.name || 'Unknown',
+					quantity: parseFloat(item.quantity) || 0,
+					price: parseFloat(item.price) || 0,
+					cost: parseFloat(item.cost) || 0,
+					gst: parseFloat(item.gst) || 0,
+					// Use optional chaining or fallbacks to ensure these aren't undefined
+					calculationType: product?.calculationType || 'Per Unit',
+					category: product?.category || 'General',
+					sku: product?.sku || "",
+					total: 0, // Add a default total to satisfy the OrderItem interface
+				};
 
                 if (product?.brand) {
                     orderItem.brand = product.brand;
                 }
+                
+                let itemSubtotal = 0;
                 if (product && isWeightBased(product.category)) {
                     orderItem.totalWeight = parseFloat(item.totalWeight) || ((parseFloat(item.quantity) || 0) * (product.weightPerUnit || 0));
+                    itemSubtotal = orderItem.price! * orderItem.totalWeight;
+                } else {
+                    itemSubtotal = orderItem.price! * orderItem.quantity!;
                 }
+                
+                orderItem.total = isGstInvoice ? itemSubtotal * (1 + (orderItem.gst || 0) / 100) : itemSubtotal;
 
                 return orderItem;
             }),

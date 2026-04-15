@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -21,13 +20,20 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { Icons } from '@/components/icons';
-import { BarChart3, Boxes, LayoutDashboard, LogOut, Settings, ShoppingCart, Users, ShieldCheck, FileText, Landmark, Truck, Receipt, Moon, Sun } from 'lucide-react';
+import { BarChart3, Boxes, LayoutDashboard, LogOut, Settings, ShoppingCart, Users, ShieldCheck, FileText, Landmark, Truck, Receipt, Moon, Sun, type LucideIcon } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const navItems = [
+// 1. Added explicit types for navItems to fix the icon rendering error
+interface NavItem {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+}
+
+const navItems: NavItem[] = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/customers', icon: Users, label: 'Customers' },
   { href: '/suppliers', icon: Landmark, label: 'Suppliers' },
@@ -46,15 +52,17 @@ function Logo() {
 
     useEffect(() => {
         setIsMounted(true);
-        const savedLogo = localStorage.getItem('companyLogo');
-        setLogoUrl(savedLogo);
+        if (typeof window !== 'undefined') {
+            const savedLogo = localStorage.getItem('companyLogo');
+            setLogoUrl(savedLogo);
+        }
     }, []);
     
     const renderDefaultLogo = () => (
-        <>
+        <div className="flex items-center gap-2">
             <Icons.logo className="w-8 h-8 text-primary" />
             <span className="text-lg font-semibold">AB AGENCY</span>
-        </>
+        </div>
     );
 
     if (!isMounted) {
@@ -62,7 +70,7 @@ function Logo() {
     }
 
     if (logoUrl) {
-        return <img src={logoUrl} alt="Company Logo" className="h-16" data-ai-hint="logo" />;
+        return <img src={logoUrl} alt="Company Logo" className="h-16 object-contain" />;
     }
 
     return renderDefaultLogo();
@@ -70,7 +78,7 @@ function Logo() {
 
 
 function MainSidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname() || ""; // 2. Fallback for pathname
   const { setTheme } = useTheme();
 
   return (
@@ -82,16 +90,19 @@ function MainSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label}>
-                <Link href={item.href}>
-                  <item.icon />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {navItems.map((item) => {
+            const Icon = item.icon; // 3. Extract icon to a capitalized variable
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label}>
+                  <Link href={item.href}>
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
@@ -99,16 +110,16 @@ function MainSidebar() {
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="justify-start w-full gap-2 p-2 h-auto">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src="https://placehold.co/100x100.png" alt="@shadcn" />
+                        <AvatarImage src="https://placehold.co/100x100.png" alt="@admin" />
                         <AvatarFallback>AA</AvatarFallback>
                     </Avatar>
-                     <div className="text-left group-data-[collapsible=icon]:hidden">
-                        <p className="font-medium text-sm">Admin User</p>
-                        <p className="text-xs text-muted-foreground">admin@abagency1977@gmail.com</p>
+                     <div className="text-left group-data-[collapsible=icon]:hidden overflow-hidden">
+                        <p className="font-medium text-sm truncate">Admin User</p>
+                        <p className="text-xs text-muted-foreground truncate">admin@abagency1977@gmail.com</p>
                     </div>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" className="w-56">
+            <DropdownMenuContent side="right" align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuSub>
@@ -146,7 +157,7 @@ function MainSidebar() {
 function MobileHeader() {
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
 
   React.useEffect(() => {
     setOpen(false);
@@ -155,40 +166,47 @@ function MobileHeader() {
   if (!isMobile) return null;
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-           <SidebarTrigger className="sm:hidden" />
+           <Button variant="ghost" size="icon" className="sm:hidden">
+              <SidebarTrigger />
+           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="sm:max-w-xs p-0 w-72">
           <SheetHeader className="sr-only">
             <SheetTitle><VisuallyHidden>Main Navigation</VisuallyHidden></SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
-              <SidebarHeader className="p-4">
+              <SidebarHeader className="p-4 border-b">
                   <Link href="/dashboard" className="flex items-center gap-2">
                      <Logo />
                   </Link>
               </SidebarHeader>
               <SidebarContent className="p-4">
                   <SidebarMenu>
-                  {navItems.map((item) => (
+                  {navItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
                       <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label}>
-                          <Link href={item.href}>
-                          <item.icon />
-                          <span>{item.label}</span>
-                          </Link>
-                      </SidebarMenuButton>
+                        <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)}>
+                            <Link href={item.href}>
+                              <Icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </Link>
+                        </SidebarMenuButton>
                       </SidebarMenuItem>
-                  ))}
+                    );
+                  })}
                   </SidebarMenu>
               </SidebarContent>
           </nav>
         </SheetContent>
       </Sheet>
       <div className="flex-1">
-        <h1 className="font-semibold text-lg">{navItems.find(item => pathname.startsWith(item.href))?.label || 'Dashboard'}</h1>
+        <h1 className="font-semibold text-lg">
+          {navItems.find(item => pathname.startsWith(item.href))?.label || 'Dashboard'}
+        </h1>
       </div>
     </header>
   );

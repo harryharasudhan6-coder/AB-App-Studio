@@ -798,8 +798,8 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                             <div className="flex items-center gap-2">
                               {isLowStock && <AlertTriangle className="h-4 w-4 text-destructive" />}
                               {product.stock}
-                              {product.calculationType === 'Per Pc' && ' nos'}
-                              {product.calculationType === 'Per Kg' && ' kg'}
+                              {(product.calculationType as string) === 'Per Pc' && ' nos'}
+							  {(product.calculationType as string) === 'Per Kg' && ' kg'}
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
@@ -880,7 +880,7 @@ const InventoryClient: React.FC<InventoryClientProps> = ({ products: initialProd
                         <div className="flex justify-between">
                           <span className="text-sm text-muted-foreground">Stock:</span>
                           <span className={cn('font-medium', isLowStock && 'text-destructive')}>
-                            {product.stock} {product.calculationType === 'Per Pc' ? 'nos' : product.calculationType === 'Per Kg' ? 'kg' : ''}
+                            {product.stock} {(product.calculationType as string) === 'Per Pc' ? 'nos' : product.calculationType === 'Per Kg' ? 'kg' : ''}
                             {isLowStock && <AlertTriangle className="inline h-4 w-4 ml-1" />}
                           </span>
                         </div>

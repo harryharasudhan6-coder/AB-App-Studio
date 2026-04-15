@@ -173,7 +173,7 @@ export function ReportsClient({ reportData }: { reportData: any }) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {topProductsData.map((p: any) => (
+                                {topProductsData?.map((p: any) => (
                                     <TableRow key={p.productId}>
                                         <TableCell>{p.productName}</TableCell>
                                         <TableCell className="text-right font-medium">
@@ -200,12 +200,28 @@ export function ReportsClient({ reportData }: { reportData: any }) {
                                     <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
                                     <YAxis tickFormatter={(value) => formatNumber(value as number)} />
                                     <Tooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent
-                                            formatter={(value, name) => <div className="flex flex-col"><span>{name === 'revenue' ? 'Revenue' : 'Est. Profit'}: {formatNumber(value as number)}</span></div>}
-                                            indicator="dot"
-                                        />}
-                                    />
+										cursor={false}
+										content={
+											<ChartTooltipContent
+												hideLabel
+												formatter={(value, name) => {
+													const label = name === "revenue" ? "Revenue" : "Est. Profit";
+													return (
+														<>
+															<div
+																className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-[--color-bg]"
+																style={ { "--color-bg": name === "revenue" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))" } as React.CSSProperties }
+															/>
+															{label}
+															<div className="ml-auto flex items-baseline gap-0.5 font-mono font-medium tabular-nums">
+																{formatNumber(value as number)}
+															</div>
+														</>
+													)
+												}}
+										/>
+									}
+								/>
                                     <Bar dataKey="revenue" fill="hsl(var(--chart-2))" radius={4} />
                                     <Bar dataKey="profit" fill="hsl(var(--chart-1))" radius={4} />
                                 </BarChart>
@@ -222,7 +238,7 @@ export function ReportsClient({ reportData }: { reportData: any }) {
                         <Table>
                             <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>SKU</TableHead><TableHead className="text-right">Stock Left</TableHead><TableHead className="text-right">Value</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {reportData.deadStock.map((p: any) => (
+                                {reportData.deadStock?.map((p: any) => (
                                     <TableRow key={p.sku}>
                                         <TableCell>{p.productName}</TableCell>
                                         <TableCell>{p.sku}</TableCell>
@@ -244,7 +260,7 @@ export function ReportsClient({ reportData }: { reportData: any }) {
                         <Table>
                              <TableHeader><TableRow><TableHead>Product</TableHead><TableHead className="text-right">Avg. Daily Sales</TableHead><TableHead className="text-right">Est. Lost Revenue/Day</TableHead></TableRow></TableHeader>
                              <TableBody>
-                                {reportData.stockoutProducts.map((p: any) => (
+                                {reportData.stockoutProducts?.map((p: any) => (
                                     <TableRow key={p.productName}>
                                         <TableCell>{p.productName}</TableCell>
                                         <TableCell className="text-right">{formatNumber(p.avgDailySales, false)}</TableCell>

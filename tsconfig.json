@@ -37,6 +37,8 @@
   ],
   "exclude": [
     "node_modules",
-    "src/types/jspdf-autotable.d.ts"
+    "src/types/jspdf-autotable.d.ts",
+    "src/lib/data-backup.ts",
+    "src/data/data.ts"
   ]
 }

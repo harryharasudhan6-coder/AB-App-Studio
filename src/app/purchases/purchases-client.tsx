@@ -76,9 +76,15 @@ export function PurchasesClient({ initialPurchases, initialSuppliers, initialPro
         let sortableItems = [...purchases];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
+                const key = sortConfig.key as keyof Purchase;
+                const aValue = a[key];
+                const bValue = b[key];
                 
+                // Handle null/undefined
+                if (aValue === bValue) return 0;
+                if (aValue === undefined || aValue === null) return 1;
+                if (bValue === undefined || bValue === null) return -1;
+
                 if (aValue < bValue) {
                     return sortConfig.direction === 'ascending' ? -1 : 1;
                 }
@@ -92,10 +98,11 @@ export function PurchasesClient({ initialPurchases, initialSuppliers, initialPro
     }, [purchases, sortConfig]);
 
     const filteredPurchases = useMemo(() => {
-        return sortedPurchases.filter(p =>
-            p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.supplierName.toLowerCase().includes(searchQuery.toLowerCase())
-        ).sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime());
+        return sortedPurchases.filter(p => {
+            const idMatch = (p.id || "").toLowerCase().includes(searchQuery.toLowerCase());
+            const supplierMatch = (p.supplierName || "").toLowerCase().includes(searchQuery.toLowerCase());
+            return idMatch || supplierMatch;
+        }).sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime());
     }, [sortedPurchases, searchQuery]);
 
     const handleAddPurchase = async (newPurchaseData: Omit<Purchase, 'id' | 'supplierName'>) => {
@@ -394,13 +401,13 @@ function AddPurchaseDialog({ isOpen, onOpenChange, suppliers, products, onPurcha
             supplierId,
             purchaseDate,
             items: items.map(item => {
-                const product = products.find(p => p.id === item.productId)!;
+                const product = products.find(p => p.id === item.productId);
                 return {
                     productId: item.productId,
-                    productName: product.name,
-                    quantity: parseInt(item.quantity),
-                    cost: parseFloat(item.cost),
-                    gst: parseFloat(item.gst),
+                    productName: product?.name || 'Unknown Item',
+                    quantity: parseInt(item.quantity) || 0,
+                    cost: parseFloat(item.cost) || 0,
+                    gst: parseFloat(item.gst) || 0,
                 };
             }),
             isGstPurchase,
@@ -604,7 +611,6 @@ function PaymentForm({ balanceDue, onAddPayment }: { balanceDue: number; onAddPa
             notes,
         });
 
-        // Reset form
         setAmount('');
         setNotes('');
     };

@@ -38,6 +38,8 @@ const AccordionTrigger = React.forwardRef<
     </AccordionPrimitive.Trigger>
   </AccordionPrimitive.Header>
 ))
+// Use a hardcoded string if the primitive's displayName is causing the error
+AccordionTrigger.displayName = "AccordionTrigger"
 AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 
 const AccordionContent = React.forwardRef<

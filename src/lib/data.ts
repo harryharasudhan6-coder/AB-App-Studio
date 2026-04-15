@@ -155,7 +155,11 @@ export const getProducts = async (): Promise<Product[]> => {
             } as Product;
         });
 
-        data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        data.sort((a, b) => {
+            const dateA = new Date(a.createdAt || '').getTime() || 0;
+            const dateB = new Date(b.createdAt || '').getTime() || 0;
+            return dateB - dateA;
+        });
         return data;
     } catch (error) {
         console.error('Fetch error:', error);
@@ -339,7 +343,7 @@ async function runBalanceChainUpdate(customerId: string, workload: (orders: Orde
                 order.previousBalance = runningPreviousBalance;
 
                 // If the order is Canceled or Deleted, its financial value should be 0 in the rolling balance.
-                const isInvalid = order.status === 'Canceled' || order.status === 'Deleted' || (order as any)._isDeleted;
+                const isInvalid = order.status === 'Canceled' || order.status === 'Deleted' || order._isDeleted;
                 const currentBillValue = isInvalid ? 0 : (order.total - (order.discount || 0) + (order.deliveryFees || 0));
                 order.grandTotal = currentBillValue + order.previousBalance;
 
@@ -852,7 +856,7 @@ export const getDashboardData = async () => {
 
             const totalUnitsSold = salesHistory.reduce((sum, i) => sum + i.quantity, 0);
             const avgDailySales = totalDays > 0 ? totalUnitsSold / totalDays : 0;
-            const potentialLostRevenue = avgDailySales * p.price;
+            const potentialLostRevenue = avgDailySales * (p.salePrice || p.price || 0);
 
             return {
                 productName: p.name,

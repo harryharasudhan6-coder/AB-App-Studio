@@ -9,11 +9,11 @@ export default async function InventoryPage() {
     // Convert Timestamps to ISO strings (fixes serialization error)
     const products = rawProducts.map(product => ({
         ...product,
-        createdAt: product.createdAt instanceof Timestamp 
-            ? product.createdAt.toDate().toISOString() 
-            : product.createdAt || new Date().toISOString(),
-        updatedAt: product.updatedAt instanceof Timestamp 
-            ? product.updatedAt.toDate().toISOString() 
+        createdAt: (product.createdAt as any) instanceof Timestamp
+			? (product.createdAt as any).toDate().toISOString()
+			: product.createdAt || new Date().toISOString(),
+		updatedAt: (product.updatedAt as any) instanceof Timestamp 
+            ? (product.updatedAt as any).toDate().toISOString() 
             : product.updatedAt || new Date().toISOString(),
     }));
 
