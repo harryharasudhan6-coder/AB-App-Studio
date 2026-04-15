@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import type { Order, Customer, Product, PaymentTerm, PaymentMode, OrderStatus, CalculationType, ProductCategory, OrderItem } from '@/lib/types';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import type { Order, Customer, Product, PaymentTerm, PaymentMode, CalculationType, ProductCategory, OrderItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, FileText, Receipt, Loader2, PlusCircle, Trash2, Download, Edit, Share2, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
+import { MoreHorizontal, FileText, Loader2, PlusCircle, Trash2, Edit, Share2, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -15,29 +15,24 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { addOrder, addCustomer, deleteOrder as deleteOrderFromDB, getCustomerBalance, getProducts, updateOrder, getCoreOrderData } from '@/lib/data';
-import { startOfWeek, startOfMonth, subMonths, isWithinInterval, type Interval } from 'date-fns';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { startOfWeek, startOfMonth, subMonths, isWithinInterval } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Combobox } from '@/components/ui/combobox';
 import * as XLSX from 'xlsx';
+import { startOfWeek, startOfMonth, subMonths, isWithinInterval, type Interval } from 'date-fns';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { UserOptions } from 'jspdf-autotable';
 
-// This tells TypeScript that jsPDF has the autoTable plugin
 interface jsPDFWithPlugin extends jsPDF {
   autoTable: (options: UserOptions) => jsPDF;
-  previousAutoTable: {
-    finalY: number;
-  };
+  previousAutoTable: { finalY: number };
 }
+
 
 type SortKey = keyof Order | 'id' | 'customerName' | 'orderDate' | 'status' | 'grandTotal';
 
