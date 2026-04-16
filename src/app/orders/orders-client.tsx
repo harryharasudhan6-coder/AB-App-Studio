@@ -175,7 +175,9 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
     }, [orderToPrint]);
 
     const handleWhatsAppShare = (order: Order) => {
-        const customer = customers.find(c => c.id === order.customerId);
+        const customer = isWalkIn 
+			? { id: 'walk-in', name: 'Walk-In Customer', address: 'Counter Sale', phone: '' }
+			: customers.find(c => c.id === customerId);
         if (!customer || !customer.phone) {
             toast({ title: 'Error', description: "Customer's phone number is not available.", variant: 'destructive'});
             return;
@@ -756,6 +758,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     onCustomerAdded: (customer: Omit<Customer, 'id'|'transactionHistory' | 'orders'>) => Promise<Customer | null>,
     existingOrder: Order | null,
 }) {
+	const [isWalkIn, setIsWalkIn] = useState(false); // 👈 Add this here
     const [customerId, setCustomerId] = useState('');
     const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
     const [items, setItems] = useState<OrderItemState[]>([]);
@@ -1143,38 +1146,76 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
     return (
         <>
-            <Dialog open={isOpen} onOpenChange={(open) => { if(!open) resetForm(); else onOpenChange(open);}}>
-                <DialogContent className="max-w-6xl w-[95vw] sm:w-full p-2 sm:p-6" aria-describedby={undefined}>
-                    <DialogHeader>
-                        <DialogTitle>{isEditMode ? `Edit Order ${existingOrder.id}`: 'Place New Order'}</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit}>
-                        <ScrollArea className="h-[70vh]">
-                            <div className="space-y-4 p-4">
-                                <Card>
-                                    <CardContent className="p-4 space-y-4 rounded-lg">
-                                        <DialogTitle className="text-lg mb-4">Order Details</DialogTitle>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="space-y-2 md:col-span-2">
-                                                <Label htmlFor="customer">Customer Name</Label>
-                                                <div className="flex gap-2">
-                                                    <Combobox 
-                                                        options={customerOptions}
-                                                        value={customerId}
-                                                        onValueChange={setCustomerId}
-                                                        placeholder="Select a customer"
-                                                        searchPlaceholder="Search customers..."
-                                                        emptyPlaceholder="No customer found."
-                                                    />
-                                                    <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>Add New</Button>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="orderDate">Order Date</Label>
-                                                <Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<div className="space-y-2 md:col-span-2">
+					<div className="flex items-center justify-between">
+						<Label htmlFor="customer" className="font-semibold">Customer Selection *</Label>
+            
+						{/* Walk-In Toggle Radio Group */}
+						<RadioGroup 
+							value={isWalkIn ? "walk-in" : "existing"}
+							onValueChange={(val) => {
+								if (val === "walk-in") {
+									setIsWalkIn(true);
+									setCustomerId('walk-in'); // Reserved ID for reporting
+								} else {
+									setIsWalkIn(false);
+									setCustomerId(''); // Reset to force a selection
+								}
+							}} 
+							className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
+						>
+							<div className="flex items-center space-x-1">
+								<RadioGroupItem value="existing" id="existing-cust" />
+								<Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
+							</div>
+							<div className="flex items-center space-x-1">
+								<RadioGroupItem value="walk-in" id="walk-in-cust" />
+								<Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">Walk-In</Label>
+							</div>
+						</RadioGroup>
+					</div>
+
+					<div className="flex gap-2">
+						<div className="flex-1">
+							{isWalkIn ? (
+								<div className="relative">
+									<Input 
+										value="WALK-IN CUSTOMER" 
+										readOnly 
+										className="bg-blue-50 border-blue-200 text-blue-700 font-bold" 
+									/>
+									<Badge className="absolute right-2 top-2 bg-blue-500 hover:bg-blue-500">Counter Sale</Badge>
+								</div>
+							) : (
+								<Combobox 
+									options={customerOptions}
+									value={customerId}
+									onValueChange={setCustomerId}
+									placeholder="Select a customer"
+									searchPlaceholder="Search customers..."
+									emptyPlaceholder="No customer found."
+								/>
+							)}
+						</div>
+            
+						{!isWalkIn && (
+							<Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>
+								Add New
+							</Button>
+						)}
+					</div>
+					{!customerId && !isWalkIn && (
+						<p className="text-[10px] text-red-500 font-medium">Please select a customer or toggle "Walk-In" to proceed.</p>
+					)}
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="orderDate">Order Date</Label>
+					<Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
+				</div>
+			</div>
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                              {isFirstOrder && !isEditMode && (
                                                 <div className="space-y-2">
                                                     <Label htmlFor="previous_balance">Opening Balance (Optional)</Label>
