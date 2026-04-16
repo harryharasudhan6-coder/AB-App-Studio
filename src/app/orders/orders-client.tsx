@@ -1144,7 +1144,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     return (
         <>
             <Dialog open={isOpen} onOpenChange={(open) => { if(!open) resetForm(); else onOpenChange(open);}}>
-                <DialogContent className="max-w-6xl" aria-describedby={undefined}>
+                <DialogContent className="max-w-6xl w-[95vw] sm:w-full p-2 sm:p-6" aria-describedby={undefined}>
                     <DialogHeader>
                         <DialogTitle>{isEditMode ? `Edit Order ${existingOrder.id}`: 'Place New Order'}</DialogTitle>
                     </DialogHeader>
