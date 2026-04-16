@@ -1146,83 +1146,89 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
     return (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2 md:col-span-2">
-                    <div className="flex items-center justify-between mb-1">
-                        <Label htmlFor="customer" className="font-semibold text-sm">Customer Selection *</Label>
-                        
-                        {/* Walk-In Toggle Radio Group */}
-                        <RadioGroup 
-                            value={isWalkIn ? "walk-in" : "existing"}
-                            onValueChange={(val) => {
-                                if (val === "walk-in") {
-                                    setIsWalkIn(true);
-                                    setCustomerId('walk-in');
-                                } else {
-                                    setIsWalkIn(false);
-                                    setCustomerId('');
-                                }
-                            }} 
-                            className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
-                        >
-                            <div className="flex items-center space-x-1">
-                                <RadioGroupItem value="existing" id="existing-cust" />
-                                <Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                                <RadioGroupItem value="walk-in" id="walk-in-cust" />
-                                <Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">Walk-In</Label>
-                            </div>
-                        </RadioGroup>
-                    </div>
+            <Dialog open={isOpen} onOpenChange={(open) => { if(!open) resetForm(); else onOpenChange(open);}}>
+                <DialogContent className="max-w-6xl w-[98vw] p-2 sm:p-6 h-[95vh] flex flex-col" aria-describedby={undefined}>
+                    <DialogHeader>
+                        <DialogTitle>{isEditMode ? `Edit Order ${existingOrder?.id}`: 'Place New Order'}</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit}>
+                        <ScrollArea className="h-[70vh]">
+                            <div className="space-y-4 p-4">
+                                <Card>
+                                    <CardContent className="p-4 space-y-4 rounded-lg">
+                                        <DialogTitle className="text-lg mb-4">Order Details</DialogTitle>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div className="space-y-2 md:col-span-2">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <Label htmlFor="customer" className="font-semibold text-sm">Customer Selection *</Label>
+                                                    
+                                                    <RadioGroup 
+                                                        value={isWalkIn ? "walk-in" : "existing"}
+                                                        onValueChange={(val) => {
+                                                            if (val === "walk-in") {
+                                                                setIsWalkIn(true);
+                                                                setCustomerId('walk-in');
+                                                            } else {
+                                                                setIsWalkIn(false);
+                                                                setCustomerId('');
+                                                            }
+                                                        }} 
+                                                        className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
+                                                    >
+                                                        <div className="flex items-center space-x-1">
+                                                            <RadioGroupItem value="existing" id="existing-cust" />
+                                                            <Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
+                                                        </div>
+                                                        <div className="flex items-center space-x-1">
+                                                            <RadioGroupItem value="walk-in" id="walk-in-cust" />
+                                                            <Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">Walk-In</Label>
+                                                        </div>
+                                                    </RadioGroup>
+                                                </div>
 
-                    <div className="flex gap-2">
-                        <div className="flex-1">
-                            {isWalkIn ? (
-                                <div className="relative">
-                                    <Input 
-                                        value="WALK-IN CUSTOMER" 
-                                        readOnly 
-                                        className="bg-blue-50 border-blue-200 text-blue-700 font-bold h-10" 
-                                    />
-                                    <Badge className="absolute right-2 top-2 bg-blue-500 hover:bg-blue-500">Counter Sale</Badge>
-                                </div>
-                            ) : (
-                                <Combobox 
-                                    options={customerOptions}
-                                    value={customerId}
-                                    onValueChange={setCustomerId}
-                                    placeholder="Select a customer"
-                                    searchPlaceholder="Search customers..."
-                                    emptyPlaceholder="No customer found."
-                                />
-                            )}
-                        </div>
-                        
-                        {!isWalkIn && (
-                            <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>
-                                Add New
-                            </Button>
-                        )}
-                    </div>
-                    {!customerId && !isWalkIn && (
-                        <p className="text-[10px] text-red-500 font-medium">Please select a customer or toggle "Walk-In" to proceed.</p>
-                    )}
-                </div>
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1">
+                                                        {isWalkIn ? (
+                                                            <div className="relative">
+                                                                <Input 
+                                                                    value="WALK-IN CUSTOMER" 
+                                                                    readOnly 
+                                                                    className="bg-blue-50 border-blue-200 text-blue-700 font-bold h-10" 
+                                                                />
+                                                                <Badge className="absolute right-2 top-2 bg-blue-500 hover:bg-blue-500">Counter Sale</Badge>
+                                                            </div>
+                                                        ) : (
+                                                            <Combobox 
+                                                                options={customerOptions}
+                                                                value={customerId}
+                                                                onValueChange={setCustomerId}
+                                                                placeholder="Select a customer"
+                                                                searchPlaceholder="Search customers..."
+                                                                emptyPlaceholder="No customer found."
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {!isWalkIn && (
+                                                        <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>
+                                                            Add New
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                {!customerId && !isWalkIn && (
+                                                    <p className="text-[10px] text-red-500 font-medium">Customer selection is mandatory.</p>
+                                                )}
+                                            </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="orderDate">Order Date</Label>
-                    <Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
-                </div>
-            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="orderDate">Order Date</Label>
+                                                <Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
+                                            </div>
+                                        </div>
 
-				<div className="space-y-2">
-					<Label htmlFor="orderDate">Order Date</Label>
-					<Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
-				</div>
-			</div>
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                             {isFirstOrder && !isEditMode && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {isFirstOrder && !isEditMode && (
                                                 <div className="space-y-2">
                                                     <Label htmlFor="previous_balance">Opening Balance (Optional)</Label>
                                                     <Input id="previous_balance" type="number" placeholder="0.00" value={String(previousBalance)} onChange={e => setPreviousBalance(parseFloat(e.target.value) || 0)} />
@@ -1265,7 +1271,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                                 {(paymentMode === 'Card' || paymentMode === 'Cheque') && (
                                                     <div className="space-y-2">
                                                         <Label>Payment Remarks</Label>
-                                                        <Input value={paymentRemarks} onChange={e => setPaymentRemarks(e.target.value)} placeholder="Enter card/cheque details"/>
+                                                        <Input value={paymentRemarks} onChange={e => setPaymentRemarks(e.target.value)} placeholder="Enter details"/>
                                                     </div>
                                                 )}
                                             </div>
@@ -1286,102 +1292,48 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                         <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
                                             <div className="space-y-2 col-span-3">
                                                 <Label>Item Name</Label>
-                                                 <Combobox 
-                                                    options={productOptions}
-                                                    value={currentItem.productId}
-                                                    onValueChange={handleProductSelect}
-                                                    placeholder="Select an item"
-                                                    searchPlaceholder="Search items..."
-                                                    emptyPlaceholder="No item found."
-                                                />
+                                                <Combobox options={productOptions} value={currentItem.productId} onValueChange={handleProductSelect} placeholder="Select an item" />
                                             </div>
                                             <div className="space-y-2 col-span-1">
                                                 <Label>Stock</Label>
                                                 <Input value={currentItem.stock} readOnly disabled />
                                             </div>
                                             <div className="space-y-2 col-span-2">
-                                                <Label>{isWeightBased(currentItem.category) ? 'Quantity (Nos)' : 'Quantity'}</Label>
-                                                <Input type="number" placeholder="0" value={currentItem.quantity} onChange={e => {
-                                                    const newQty = e.target.value;
-                                                    if (isWeightBased(currentItem.category)) {
-                                                        const calcWeight = (parseFloat(newQty) || 0) * currentItem.weightPerUnit;
-                                                        setCurrentItem(s => ({ ...s, quantity: newQty, totalWeight: calcWeight.toFixed(2) }));
-                                                    } else {
-                                                        setCurrentItem(s => ({ ...s, quantity: newQty }));
-                                                    }
-                                                }} min="0" step="any" />
+                                                <Label>{isWeightBased(currentItem.category) ? 'Qty (Nos)' : 'Qty'}</Label>
+                                                <Input type="number" placeholder="0" value={currentItem.quantity} onChange={e => setCurrentItem({...currentItem, quantity: e.target.value})} />
                                             </div>
-                                             {isWeightBased(currentItem.category) && (
-                                                <div className="space-y-2 col-span-2">
-                                                    <Label>Total Weight (Kg)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={currentItem.totalWeight}
-                                                        onChange={e => setCurrentItem(s => ({ ...s, totalWeight: e.target.value }))}
-                                                        placeholder="0.00"
-                                                        step="0.01"
-                                                    />
-                                                </div>
-                                            )}
                                             <div className="space-y-2 col-span-2">
-                                                <Label>Sale Price {currentItem.calculationType === 'Per Kg' && '(per Kg)'}</Label>
-                                                <Input type="number" value={currentItem.price} onChange={e => setCurrentItem(s => ({ ...s, price: e.target.value }))} />
+                                                <Label>Price</Label>
+                                                <Input type="number" value={currentItem.price} onChange={e => setCurrentItem({...currentItem, price: e.target.value})} />
                                             </div>
-                                            <div className="flex justify-end mt-4 col-span-2">
-                                                {editingItemIndex !== null ? (
-                                                    <Button type="button" onClick={handleUpdateItem}>Update Item</Button>
-                                                ) : (
-                                                    <Button type="button" onClick={handleAddItem}>Add Item</Button>
-                                                )}
+                                            <div className="flex justify-end mt-4 col-span-4">
+                                                <Button type="button" onClick={editingItemIndex !== null ? handleUpdateItem : handleAddItem}>
+                                                    {editingItemIndex !== null ? 'Update Item' : 'Add Item'}
+                                                </Button>
                                             </div>
                                         </div>
                                     </CardContent>
                                 </Card>
 
-
-                                {/* Items Table */}
                                 <Card>
                                     <CardContent className="p-4">
                                         <DialogTitle className="text-lg mb-4">Order Items</DialogTitle>
                                         <div className="w-full overflow-x-auto rounded-md border">
                                             <Table className="min-w-[700px]">
-                                                <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Quantity</TableHead><TableHead>Total Wt.</TableHead><TableHead>Price</TableHead><TableHead>GST</TableHead><TableHead>Total</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                                                <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Quantity</TableHead><TableHead>Price</TableHead><TableHead>Total</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
                                                 <TableBody>
-                                                    {items.map((item, index) => {
-                                                        const product = products.find(p => p.id === item.productId);
-                                                        const price = parseFloat(item.price) || 0;
-                                                        const quantity = parseFloat(item.quantity) || 0;
-                                                        const gst = parseFloat(item.gst) || 0;
-                                                        
-                                                        const totalWeight = isWeightBased(item.category)
-                                                            ? (parseFloat(item.totalWeight) || (quantity * (item.weightPerUnit || 0)))
-                                                            : 0;
-                                                        const priceBase = isWeightBased(item.category) ? totalWeight : quantity;
-                                                        
-                                                        const itemSubTotal = price * priceBase;
-
-                                                        const itemTotal = isGstInvoice
-                                                            ? itemSubTotal * (1 + gst / 100)
-                                                            : itemSubTotal;
-                                                        
-                                                        let productName = product?.name || 'Unknown';
-                                                        if (product?.brand) productName += ` (${product.brand})`;
-
-                                                        return (
-                                                            <TableRow key={index}>
-                                                                <TableCell>{productName}</TableCell>
-                                                                <TableCell>{quantity} {isWeightBased(item.category) ? 'nos' : (item.calculationType === 'Per Kg' ? 'kg' : '')}</TableCell>
-                                                                <TableCell>{isWeightBased(item.category) ? `${totalWeight.toFixed(2)} kg` : 'N/A'}</TableCell>
-                                                                <TableCell>{formatNumberForDisplay(price)}{item.calculationType === 'Per Kg' ? '/kg' : ''}</TableCell>
-                                                                <TableCell>{isGstInvoice ? `${item.gst}%` : 'N/A'}</TableCell>
-                                                                <TableCell>{formatNumberForDisplay(itemTotal)}</TableCell>
-                                                                <TableCell className="space-x-2">
-                                                                    <Button type="button" size="sm" variant="outline" onClick={() => handleEditItemClick(index)}>Edit</Button>
-                                                                    <Button type="button" size="sm" variant="destructive" onClick={() => handleRemoveItem(index)}>Delete</Button>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        );
-                                                    })}
+                                                    {items.map((item, index) => (
+                                                        <TableRow key={index}>
+                                                            <TableCell>{products.find(p => p.id === item.productId)?.name}</TableCell>
+                                                            <TableCell>{item.quantity}</TableCell>
+                                                            <TableCell>{formatNumberForDisplay(parseFloat(item.price))}</TableCell>
+                                                            <TableCell>{formatNumberForDisplay(parseFloat(item.price) * parseFloat(item.quantity))}</TableCell>
+                                                            <TableCell className="space-x-2">
+                                                                <Button type="button" size="sm" variant="outline" onClick={() => handleEditItemClick(index)}>Edit</Button>
+                                                                <Button type="button" size="sm" variant="destructive" onClick={() => handleRemoveItem(index)}>Delete</Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
                                                 </TableBody>
                                             </Table>
                                         </div>
@@ -1389,6 +1341,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                 </Card>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    
                                     {/* Delivery Details */}
                                     <Card>
                                         <CardContent className="p-4 space-y-4">
