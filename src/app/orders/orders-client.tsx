@@ -1147,68 +1147,74 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<div className="space-y-2 md:col-span-2">
-					<div className="flex items-center justify-between">
-						<Label htmlFor="customer" className="font-semibold">Customer Selection *</Label>
-            
-						{/* Walk-In Toggle Radio Group */}
-						<RadioGroup 
-							value={isWalkIn ? "walk-in" : "existing"}
-							onValueChange={(val) => {
-								if (val === "walk-in") {
-									setIsWalkIn(true);
-									setCustomerId('walk-in'); // Reserved ID for reporting
-								} else {
-									setIsWalkIn(false);
-									setCustomerId(''); // Reset to force a selection
-								}
-							}} 
-							className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
-						>
-							<div className="flex items-center space-x-1">
-								<RadioGroupItem value="existing" id="existing-cust" />
-								<Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
-							</div>
-							<div className="flex items-center space-x-1">
-								<RadioGroupItem value="walk-in" id="walk-in-cust" />
-								<Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">Walk-In</Label>
-							</div>
-						</RadioGroup>
-					</div>
+                <div className="space-y-2 md:col-span-2">
+                    <div className="flex items-center justify-between mb-1">
+                        <Label htmlFor="customer" className="font-semibold text-sm">Customer Selection *</Label>
+                        
+                        {/* Walk-In Toggle Radio Group */}
+                        <RadioGroup 
+                            value={isWalkIn ? "walk-in" : "existing"}
+                            onValueChange={(val) => {
+                                if (val === "walk-in") {
+                                    setIsWalkIn(true);
+                                    setCustomerId('walk-in');
+                                } else {
+                                    setIsWalkIn(false);
+                                    setCustomerId('');
+                                }
+                            }} 
+                            className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
+                        >
+                            <div className="flex items-center space-x-1">
+                                <RadioGroupItem value="existing" id="existing-cust" />
+                                <Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                                <RadioGroupItem value="walk-in" id="walk-in-cust" />
+                                <Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">Walk-In</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
 
-					<div className="flex gap-2">
-						<div className="flex-1">
-							{isWalkIn ? (
-								<div className="relative">
-									<Input 
-										value="WALK-IN CUSTOMER" 
-										readOnly 
-										className="bg-blue-50 border-blue-200 text-blue-700 font-bold" 
-									/>
-									<Badge className="absolute right-2 top-2 bg-blue-500 hover:bg-blue-500">Counter Sale</Badge>
-								</div>
-							) : (
-								<Combobox 
-									options={customerOptions}
-									value={customerId}
-									onValueChange={setCustomerId}
-									placeholder="Select a customer"
-									searchPlaceholder="Search customers..."
-									emptyPlaceholder="No customer found."
-								/>
-							)}
-						</div>
-            
-						{!isWalkIn && (
-							<Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>
-								Add New
-							</Button>
-						)}
-					</div>
-					{!customerId && !isWalkIn && (
-						<p className="text-[10px] text-red-500 font-medium">Please select a customer or toggle "Walk-In" to proceed.</p>
-					)}
-				</div>
+                    <div className="flex gap-2">
+                        <div className="flex-1">
+                            {isWalkIn ? (
+                                <div className="relative">
+                                    <Input 
+                                        value="WALK-IN CUSTOMER" 
+                                        readOnly 
+                                        className="bg-blue-50 border-blue-200 text-blue-700 font-bold h-10" 
+                                    />
+                                    <Badge className="absolute right-2 top-2 bg-blue-500 hover:bg-blue-500">Counter Sale</Badge>
+                                </div>
+                            ) : (
+                                <Combobox 
+                                    options={customerOptions}
+                                    value={customerId}
+                                    onValueChange={setCustomerId}
+                                    placeholder="Select a customer"
+                                    searchPlaceholder="Search customers..."
+                                    emptyPlaceholder="No customer found."
+                                />
+                            )}
+                        </div>
+                        
+                        {!isWalkIn && (
+                            <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>
+                                Add New
+                            </Button>
+                        )}
+                    </div>
+                    {!customerId && !isWalkIn && (
+                        <p className="text-[10px] text-red-500 font-medium">Please select a customer or toggle "Walk-In" to proceed.</p>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="orderDate">Order Date</Label>
+                    <Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
+                </div>
+            </div>
 
 				<div className="space-y-2">
 					<Label htmlFor="orderDate">Order Date</Label>
