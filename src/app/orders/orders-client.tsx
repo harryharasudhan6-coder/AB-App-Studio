@@ -1015,13 +1015,14 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!customerId) {
-             toast({
-                title: "Validation Error",
-                description: 'Please select a customer.',
-                variant: 'destructive'
-            });
-            return;
+        if (!customerId && !isWalkIn) {
+			toast({ 
+				title: "Validation Error", 
+				description: 'Please select a customer or toggle Walk-In.', 
+				variant: 'destructive' 
+			});
+			return;
+		}
         }
 
 		
