@@ -578,8 +578,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
             </div>
             {/* Desktop Table View */}
             <div className="hidden md:block rounded-lg border shadow-sm overflow-x-auto">
-				<Table className="min-w-[800px]">
-                <Table>
+                <Table className="min-w-[800px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>
@@ -1295,50 +1294,50 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
                                 {/* Items Table */}
                                 <Card>
-									<CardContent className="p-4">
-										<DialogTitle className="text-lg mb-4">Order Items</DialogTitle>
-										<div className="w-full overflow-x-auto rounded-md border">
-											<Table className="min-w-[700px]">
-                                            <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Quantity</TableHead><TableHead>Total Wt.</TableHead><TableHead>Price</TableHead><TableHead>GST</TableHead><TableHead>Total</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
-                                            <TableBody>
-                                                {items.map((item, index) => {
-                                                    const product = products.find(p => p.id === item.productId);
-                                                    const price = parseFloat(item.price) || 0;
-                                                    const quantity = parseFloat(item.quantity) || 0;
-                                                    const gst = parseFloat(item.gst) || 0;
-                                                    
-                                                    const totalWeight = isWeightBased(item.category)
-                                                        ? (parseFloat(item.totalWeight) || (quantity * (item.weightPerUnit || 0)))
-                                                        : 0;
-                                                    const priceBase = isWeightBased(item.category) ? totalWeight : quantity;
-                                                    
-                                                    const itemSubTotal = price * priceBase;
+                                    <CardContent className="p-4">
+                                        <DialogTitle className="text-lg mb-4">Order Items</DialogTitle>
+                                        <div className="w-full overflow-x-auto rounded-md border">
+                                            <Table className="min-w-[700px]">
+                                                <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Quantity</TableHead><TableHead>Total Wt.</TableHead><TableHead>Price</TableHead><TableHead>GST</TableHead><TableHead>Total</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {items.map((item, index) => {
+                                                        const product = products.find(p => p.id === item.productId);
+                                                        const price = parseFloat(item.price) || 0;
+                                                        const quantity = parseFloat(item.quantity) || 0;
+                                                        const gst = parseFloat(item.gst) || 0;
+                                                        
+                                                        const totalWeight = isWeightBased(item.category)
+                                                            ? (parseFloat(item.totalWeight) || (quantity * (item.weightPerUnit || 0)))
+                                                            : 0;
+                                                        const priceBase = isWeightBased(item.category) ? totalWeight : quantity;
+                                                        
+                                                        const itemSubTotal = price * priceBase;
 
-                                                    const itemTotal = isGstInvoice
-                                                        ? itemSubTotal * (1 + gst / 100)
-                                                        : itemSubTotal;
-                                                    
-                                                    let productName = product?.name || 'Unknown';
-                                                    if (product?.brand) productName += ` (${product.brand})`;
+                                                        const itemTotal = isGstInvoice
+                                                            ? itemSubTotal * (1 + gst / 100)
+                                                            : itemSubTotal;
+                                                        
+                                                        let productName = product?.name || 'Unknown';
+                                                        if (product?.brand) productName += ` (${product.brand})`;
 
-                                                    return (
-                                                        <TableRow key={index}>
-                                                            <TableCell>{productName}</TableCell>
-                                                            <TableCell>{quantity} {isWeightBased(item.category) ? 'nos' : (item.calculationType === 'Per Kg' ? 'kg' : '')}</TableCell>
-                                                            <TableCell>{isWeightBased(item.category) ? `${totalWeight.toFixed(2)} kg` : 'N/A'}</TableCell>
-                                                            <TableCell>{formatNumberForDisplay(price)}{item.calculationType === 'Per Kg' ? '/kg' : ''}</TableCell>
-                                                            <TableCell>{isGstInvoice ? `${item.gst}%` : 'N/A'}</TableCell>
-                                                            <TableCell>{formatNumberForDisplay(itemTotal)}</TableCell>
-                                                            <TableCell className="space-x-2">
-                                                                <Button type="button" size="sm" variant="outline" onClick={() => handleEditItemClick(index)}>Edit</Button>
-                                                                <Button type="button" size="sm" variant="destructive" onClick={() => handleRemoveItem(index)}>Delete</Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    );
-                                                })}
-                                            </TableBody>
-                                        </Table>
-									</div> {/* Add this closing div here */}
+                                                        return (
+                                                            <TableRow key={index}>
+                                                                <TableCell>{productName}</TableCell>
+                                                                <TableCell>{quantity} {isWeightBased(item.category) ? 'nos' : (item.calculationType === 'Per Kg' ? 'kg' : '')}</TableCell>
+                                                                <TableCell>{isWeightBased(item.category) ? `${totalWeight.toFixed(2)} kg` : 'N/A'}</TableCell>
+                                                                <TableCell>{formatNumberForDisplay(price)}{item.calculationType === 'Per Kg' ? '/kg' : ''}</TableCell>
+                                                                <TableCell>{isGstInvoice ? `${item.gst}%` : 'N/A'}</TableCell>
+                                                                <TableCell>{formatNumberForDisplay(itemTotal)}</TableCell>
+                                                                <TableCell className="space-x-2">
+                                                                    <Button type="button" size="sm" variant="outline" onClick={() => handleEditItemClick(index)}>Edit</Button>
+                                                                    <Button type="button" size="sm" variant="destructive" onClick={() => handleRemoveItem(index)}>Delete</Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        );
+                                                    })}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
                                     </CardContent>
                                 </Card>
 
