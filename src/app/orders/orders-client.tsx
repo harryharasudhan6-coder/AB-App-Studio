@@ -577,7 +577,8 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                 </Select>
             </div>
             {/* Desktop Table View */}
-            <div className="hidden md:block rounded-lg border shadow-sm">
+            <div className="hidden md:block rounded-lg border shadow-sm overflow-x-auto">
+				<Table className="min-w-[800px]">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -1294,9 +1295,10 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
                                 {/* Items Table */}
                                 <Card>
-                                    <CardContent className="p-4">
-                                        <DialogTitle className="text-lg mb-4">Order Items</DialogTitle>
-                                        <Table>
+									<CardContent className="p-4">
+										<DialogTitle className="text-lg mb-4">Order Items</DialogTitle>
+										<div className="w-full overflow-x-auto rounded-md border">
+											<Table className="min-w-[700px]">
                                             <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Quantity</TableHead><TableHead>Total Wt.</TableHead><TableHead>Price</TableHead><TableHead>GST</TableHead><TableHead>Total</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
                                             <TableBody>
                                                 {items.map((item, index) => {
@@ -1336,6 +1338,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                                 })}
                                             </TableBody>
                                         </Table>
+									</div> {/* Add this closing div here */}
                                     </CardContent>
                                 </Card>
 
