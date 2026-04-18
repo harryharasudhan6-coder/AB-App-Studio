@@ -1022,125 +1022,75 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
         let finalCustomerName = '';
 
         if (isWalkIn) {
-            if (!walkInName) {
-                toast({ title: "Name Required", description: "Please enter the walk-in customer name.", variant: "destructive" });
+            if (!walkInName || !walkInPhone) {
+                toast({ title: "Missing Info", description: "Name and Phone are required for walk-ins.", variant: "destructive" });
                 return;
             }
+
+            // Check if this phone already exists to prevent duplicates
+            const existing = customers.find(c => c.phone?.replace(/\D/g,'').includes(walkInPhone.replace(/\D/g,'')));
             
-            // This creates the customer in your DB first
-            const newCust = await onCustomerAdded({
-                name: walkInName,
-                phone: walkInPhone,
-                address: 'Walk-In Sale',
-                gstin: ''
-            });
-            
-            if (newCust) {
-                finalCustomerId = newCust.id;
-                finalCustomerName = newCust.name;
+            if (existing) {
+                finalCustomerId = existing.id;
+                finalCustomerName = existing.name;
             } else {
-                return; // Stop if customer creation failed
+                // Truly a new customer - create them with a Walk-In tag
+                const newCust = await onCustomerAdded({
+                    name: `${walkInName} (Walk-In)`,
+                    phone: walkInPhone,
+                    address: 'Counter Sale',
+                    gstin: ''
+                });
+                if (newCust) {
+                    finalCustomerId = newCust.id;
+                    finalCustomerName = newCust.name;
+                } else return;
             }
         } else {
             if (!customerId) {
-                toast({ title: "Validation Error", description: 'Please select a customer.', variant: 'destructive' });
+                toast({ title: "Error", description: "Select a customer.", variant: "destructive" });
                 return;
             }
             const customer = customers.find(c => c.id === customerId);
             finalCustomerName = customer?.name || '';
         }
 
-        if (items.length === 0 && (!isFirstOrder || previousBalance <= 0)) {
-            toast({ title: "Validation Error", description: 'Please add items to the order.', variant: 'destructive' });
+        if (items.length === 0) {
+            toast({ title: "Error", description: "Add at least one item.", variant: "destructive" });
             return;
         }
 
-        let orderData: any = {
-            id: isEditMode ? existingOrder?.id : '',
-            customerId: finalCustomerId, // 👈 Uses the new ID
-            customerName: finalCustomerName, // 👈 Uses the new Name
+        const orderData: any = {
+            customerId: finalCustomerId,
+            customerName: finalCustomerName,
             orderDate,
-            // ... the rest of your items.map logic continues here
-            customerName: customer.name,
-            items: isOpeningBalanceOrder ? [{
-                productId: 'OPENING_BALANCE',
-                productName: 'Opening Balance',
-                quantity: 1,
-                price: previousBalance,
-                cost: 0,
-                gst: 0,
-                calculationType: 'Per Unit',
-                category: 'General',
-                sku: 'OB',
-                total: previousBalance,
-            }] : items.map(item => {
-                const product = products.find(p => p.id === item.productId);
-                const orderItem: OrderItem = {
-                    productId: item.productId,
-                    productName: product?.name || 'Unknown',
-                    quantity: parseFloat(item.quantity) || 0,
-                    price: parseFloat(item.price) || 0,
-                    cost: parseFloat(item.cost) || 0,
-                    gst: parseFloat(item.gst) || 0,
-                    calculationType: product?.calculationType || 'Per Unit',
-                    category: product?.category || 'General',
-                    sku: product?.sku || "",
-                    total: 0,
-                };
-
-                if (product?.brand) orderItem.brand = product.brand;
-                
-                let itemSubtotal = 0;
-                if (product && isWeightBased(product.category)) {
-                    orderItem.totalWeight = parseFloat(item.totalWeight) || ((parseFloat(item.quantity) || 0) * (product.weightPerUnit || 0));
-                    itemSubtotal = orderItem.price! * orderItem.totalWeight;
-                } else {
-                    itemSubtotal = orderItem.price! * orderItem.quantity!;
-                }
-                
-                orderItem.total = isGstInvoice ? itemSubtotal * (1 + (orderItem.gst || 0) / 100) : itemSubtotal;
-                return orderItem;
-            }),
-            total: isOpeningBalanceOrder ? previousBalance : currentInvoiceTotal,
-            previousBalance: isOpeningBalanceOrder ? 0 : previousBalance,
+            items: items.map(item => ({
+                ...item,
+                quantity: parseFloat(item.quantity),
+                price: parseFloat(item.price),
+                total: parseFloat(item.quantity) * parseFloat(item.price)
+            })),
+            total: currentInvoiceTotal,
+            previousBalance,
             discount,
             deliveryFees,
-            grandTotal: isOpeningBalanceOrder ? previousBalance : grandTotal,
+            grandTotal,
             paymentTerm,
-            deliveryAddress: deliveryAddress || customer.address,
+            deliveryAddress: deliveryAddress || 'Counter Sale',
             isGstInvoice,
-            isOpeningBalance: isOpeningBalanceOrder,
+            status: paymentTerm === 'Full Payment' ? 'Fulfilled' : 'Pending'
         };
 
-        if (deliveryDate) orderData.deliveryDate = deliveryDate;
-
-        if (paymentTerm === 'Credit') {
-            orderData.payments = isEditMode ? existingOrder?.payments : [];
-            orderData.balanceDue = orderData.grandTotal;
-            orderData.status = 'Pending';
-            if (dueDate) orderData.dueDate = dueDate;
-        } else {
-            orderData.payments = [{
-                id: 'temp-payment-id',
-                paymentDate: orderDate,
-                amount: orderData.grandTotal,
-                method: paymentMode,
-                notes: paymentRemarks,
-            }];
-            orderData.balanceDue = 0;
-            orderData.status = 'Fulfilled';
-        }
-        
-        // 4. Submit to Database
         try {
             if (isEditMode) {
-                await onOrderUpdated(orderData as Order);
+                await onOrderUpdated({ ...orderData, id: existingOrder.id });
             } else {
-                await onOrderAdded(orderData as Omit<Order, 'id' | 'customerName'>);
+                await onOrderAdded(orderData);
             }
             resetForm();
+            toast({ title: "Success", description: "Order placed successfully!" });
         } catch (e) {
-            console.error("Submission failed", e);
+            console.error(e);
         }
     };
 
@@ -1164,73 +1114,83 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                     <CardContent className="p-4 space-y-4 rounded-lg">
                                         <DialogTitle className="text-lg mb-4">Order Details</DialogTitle>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div className="space-y-2 md:col-span-2">
-        <div className="flex items-center justify-between mb-1">
-            <Label className="font-semibold text-sm">Customer Selection *</Label>
-            <RadioGroup 
-                value={isWalkIn ? "walk-in" : "existing"}
-                onValueChange={(val) => {
-                    setIsWalkIn(val === "walk-in");
-                    if (val === "existing") setCustomerId('');
-                }} 
-                className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
-            >
-                <div className="flex items-center space-x-1">
-                    <RadioGroupItem value="existing" id="existing-cust" />
-                    <Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
-                </div>
-                <div className="flex items-center space-x-1">
-                    <RadioGroupItem value="walk-in" id="walk-in-cust" />
-                    <Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">Walk-In</Label>
-                </div>
-            </RadioGroup>
-        </div>
+											<div className="space-y-2 md:col-span-2">
+												<div className="flex items-center justify-between mb-1">
+													<Label className="font-semibold text-sm">Customer Selection *</Label>
+													<RadioGroup 
+														value={isWalkIn ? "walk-in" : "existing"}
+														onValueChange={(val) => {
+															setIsWalkIn(val === "walk-in");
+															if (val === "existing") setCustomerId('');
+														}} 
+														className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
+													>
+														<div className="flex items-center space-x-1">
+															<RadioGroupItem value="existing" id="existing-cust" />
+															<Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
+														</div>
+														<div className="flex items-center space-x-1">
+															<RadioGroupItem value="walk-in" id="walk-in-cust" />
+															<Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">New/Walk-In</Label>
+														</div>
+													</RadioGroup>
+												</div>
 
-        {isWalkIn ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
-                <div className="space-y-2">
-                    <Label htmlFor="wiName" className="text-xs text-blue-700 font-bold">Walk-In Name *</Label>
-                    <Input 
-                        id="wiName" 
-                        placeholder="Enter Customer Name" 
-                        value={walkInName} 
-                        onChange={e => setWalkInName(e.target.value)}
-                        className="bg-white border-blue-200 h-9"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="wiPhone" className="text-xs text-blue-700 font-bold">Mobile (WhatsApp)</Label>
-                    <Input 
-                        id="wiPhone" 
-                        placeholder="10-digit mobile" 
-                        value={walkInPhone} 
-                        onChange={e => setWalkInPhone(e.target.value)}
-                        className="bg-white border-blue-200 h-9"
-                    />
-                </div>
-            </div>
-        ) : (
-            <div className="flex gap-2">
-                <div className="flex-1">
-                    <Combobox 
-                        options={customerOptions}
-                        value={customerId}
-                        onValueChange={setCustomerId}
-                        placeholder="Select a regular customer"
-                    />
-                </div>
-                <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>
-                    Add New
-                </Button>
-            </div>
-        )}
-    </div>
+												{isWalkIn ? (
+													<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
+														<div className="space-y-1">
+															<Label htmlFor="wiPhone" className="text-[10px] text-blue-700 font-bold uppercase">Mobile Number</Label>
+															<Input 
+																id="wiPhone" 
+																placeholder="Type mobile..." 
+																value={walkInPhone} 
+																onChange={e => {
+																	const val = e.target.value;
+																	setWalkInPhone(val);
+																	// Auto-search logic
+																	if (val.length >= 10) {
+																		const cleanVal = val.replace(/\D/g,'');
+																		const existing = customers.find(c => c.phone?.replace(/\D/g,'').includes(cleanVal));
+																		if (existing) {
+																			setWalkInName(existing.name);
+																			toast({ title: "Returning Customer", description: `Found: ${existing.name}` });
+																		}
+																	}
+																}}
+																className="bg-white border-blue-200 h-9"
+															/>
+														</div>
+														<div className="space-y-1">
+															<Label htmlFor="wiName" className="text-[10px] text-blue-700 font-bold uppercase">Customer Name *</Label>
+														<Input 
+															id="wiName" 
+															placeholder="Enter Name" 
+															value={walkInName} 
+															onChange={e => setWalkInName(e.target.value)}
+															className="bg-white border-blue-200 h-9"
+														/>
+													</div>
+												</div>
+											) : (
+												<div className="flex gap-2">
+													<div className="flex-1">
+														<Combobox 
+															options={customerOptions}
+															value={customerId}
+															onValueChange={setCustomerId}
+															placeholder="Search existing customers..."
+													/>
+												</div>
+												<Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>Add New</Button>
+												</div>
+											)}
+										</div>
 
-    <div className="space-y-2">
-        <Label htmlFor="orderDate">Order Date</Label>
-        <Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
-    </div>
-</div>
+										<div className="space-y-2">
+											<Label htmlFor="orderDate">Order Date</Label>
+											<Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
+										</div>
+									</div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             {isFirstOrder && !isEditMode && (
