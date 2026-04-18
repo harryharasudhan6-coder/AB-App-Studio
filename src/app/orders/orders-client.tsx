@@ -44,7 +44,7 @@ const formatNumberForDisplay = (value: number | undefined) => {
 export function OrdersClient({ orders: initialOrders, customers: initialCustomers, products: initialProducts }: { orders: Order[], customers: Customer[], products: Product[] }) {
     const [orders, setOrders] = useState<Order[]>(initialOrders);
     const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-    const [products, setProducts] = useState<Product[]>(initialProducts);
+	const [products, setProducts] = useState<Product[]>(initialProducts);
     const [isLoading, setIsLoading] = useState(false);
     const [isAddOrderOpen, setIsAddOrderOpen] = useState(false);
     const [orderToPrint, setOrderToPrint] = useState<Order | null>(null);
@@ -759,6 +759,8 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     existingOrder: Order | null,
 }) {
 	const [isWalkIn, setIsWalkIn] = useState(false); // 👈 Add this here
+	const [walkInName, setWalkInName] = useState('');
+	const [walkInPhone, setWalkInPhone] = useState('');
     const [customerId, setCustomerId] = useState('');
     const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
     const [items, setItems] = useState<OrderItemState[]>([]);
@@ -1016,42 +1018,49 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        // 1. Validation Logic: Allow if walk-in is toggled or customer is selected
-        if (!isWalkIn && !customerId) {
-            toast({ 
-                title: "Validation Error", 
-                description: 'Please select a customer or toggle Walk-In.', 
-                variant: 'destructive' 
+        let finalCustomerId = customerId;
+        let finalCustomerName = '';
+
+        if (isWalkIn) {
+            if (!walkInName) {
+                toast({ title: "Name Required", description: "Please enter the walk-in customer name.", variant: "destructive" });
+                return;
+            }
+            
+            // This creates the customer in your DB first
+            const newCust = await onCustomerAdded({
+                name: walkInName,
+                phone: walkInPhone,
+                address: 'Walk-In Sale',
+                gstin: ''
             });
-            return;
+            
+            if (newCust) {
+                finalCustomerId = newCust.id;
+                finalCustomerName = newCust.name;
+            } else {
+                return; // Stop if customer creation failed
+            }
+        } else {
+            if (!customerId) {
+                toast({ title: "Validation Error", description: 'Please select a customer.', variant: 'destructive' });
+                return;
+            }
+            const customer = customers.find(c => c.id === customerId);
+            finalCustomerName = customer?.name || '';
         }
 
         if (items.length === 0 && (!isFirstOrder || previousBalance <= 0)) {
-            toast({
-                title: "Validation Error",
-                description: 'Please add at least one item to the order.',
-                variant: 'destructive'
-            });
+            toast({ title: "Validation Error", description: 'Please add items to the order.', variant: 'destructive' });
             return;
         }
-        
-        // 2. Resolve Customer (Virtual object for Walk-In, DB lookup for Regular)
-        const customer = isWalkIn 
-            ? { id: 'walk-in', name: 'Walk-In Customer', address: 'Counter Sale', phone: '' }
-            : customers.find(c => c.id === customerId);
 
-        if (!customer) {
-            toast({ title: "Error", description: "Customer data not found.", variant: "destructive" });
-            return;
-        }
-        
-        const isOpeningBalanceOrder = isFirstOrder && previousBalance > 0 && items.length === 0;
-
-        // 3. Construct Order Data
         let orderData: any = {
             id: isEditMode ? existingOrder?.id : '',
-            customerId: isWalkIn ? 'walk-in' : customerId,
+            customerId: finalCustomerId, // 👈 Uses the new ID
+            customerName: finalCustomerName, // 👈 Uses the new Name
             orderDate,
+            // ... the rest of your items.map logic continues here
             customerName: customer.name,
             items: isOpeningBalanceOrder ? [{
                 productId: 'OPENING_BALANCE',
@@ -1154,75 +1163,74 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                 <Card>
                                     <CardContent className="p-4 space-y-4 rounded-lg">
                                         <DialogTitle className="text-lg mb-4">Order Details</DialogTitle>
-                                        
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="space-y-2 md:col-span-2">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <Label htmlFor="customer" className="font-semibold text-sm">Customer Selection *</Label>
-                                                    
-                                                    <RadioGroup 
-                                                        value={isWalkIn ? "walk-in" : "existing"}
-                                                        onValueChange={(val) => {
-                                                            if (val === "walk-in") {
-                                                                setIsWalkIn(true);
-                                                                setCustomerId('walk-in');
-                                                            } else {
-                                                                setIsWalkIn(false);
-                                                                setCustomerId('');
-                                                            }
-                                                        }} 
-                                                        className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
-                                                    >
-                                                        <div className="flex items-center space-x-1">
-                                                            <RadioGroupItem value="existing" id="existing-cust" />
-                                                            <Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
-                                                        </div>
-                                                        <div className="flex items-center space-x-1">
-                                                            <RadioGroupItem value="walk-in" id="walk-in-cust" />
-                                                            <Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">Walk-In</Label>
-                                                        </div>
-                                                    </RadioGroup>
-                                                </div>
+    <div className="space-y-2 md:col-span-2">
+        <div className="flex items-center justify-between mb-1">
+            <Label className="font-semibold text-sm">Customer Selection *</Label>
+            <RadioGroup 
+                value={isWalkIn ? "walk-in" : "existing"}
+                onValueChange={(val) => {
+                    setIsWalkIn(val === "walk-in");
+                    if (val === "existing") setCustomerId('');
+                }} 
+                className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
+            >
+                <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="existing" id="existing-cust" />
+                    <Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
+                </div>
+                <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="walk-in" id="walk-in-cust" />
+                    <Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">Walk-In</Label>
+                </div>
+            </RadioGroup>
+        </div>
 
-                                                <div className="flex gap-2">
-                                                    <div className="flex-1">
-                                                        {isWalkIn ? (
-                                                            <div className="relative">
-                                                                <Input 
-                                                                    value="WALK-IN CUSTOMER" 
-                                                                    readOnly 
-                                                                    className="bg-blue-50 border-blue-200 text-blue-700 font-bold h-10" 
-                                                                />
-                                                                <Badge className="absolute right-2 top-2 bg-blue-500 hover:bg-blue-500">Counter Sale</Badge>
-                                                            </div>
-                                                        ) : (
-                                                            <Combobox 
-                                                                options={customerOptions}
-                                                                value={customerId}
-                                                                onValueChange={setCustomerId}
-                                                                placeholder="Select a customer"
-                                                                searchPlaceholder="Search customers..."
-                                                                emptyPlaceholder="No customer found."
-                                                            />
-                                                        )}
-                                                    </div>
-                                                    
-                                                    {!isWalkIn && (
-                                                        <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>
-                                                            Add New
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                                {!customerId && !isWalkIn && (
-                                                    <p className="text-[10px] text-red-500 font-medium">Customer selection is mandatory.</p>
-                                                )}
-                                            </div>
+        {isWalkIn ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
+                <div className="space-y-2">
+                    <Label htmlFor="wiName" className="text-xs text-blue-700 font-bold">Walk-In Name *</Label>
+                    <Input 
+                        id="wiName" 
+                        placeholder="Enter Customer Name" 
+                        value={walkInName} 
+                        onChange={e => setWalkInName(e.target.value)}
+                        className="bg-white border-blue-200 h-9"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="wiPhone" className="text-xs text-blue-700 font-bold">Mobile (WhatsApp)</Label>
+                    <Input 
+                        id="wiPhone" 
+                        placeholder="10-digit mobile" 
+                        value={walkInPhone} 
+                        onChange={e => setWalkInPhone(e.target.value)}
+                        className="bg-white border-blue-200 h-9"
+                    />
+                </div>
+            </div>
+        ) : (
+            <div className="flex gap-2">
+                <div className="flex-1">
+                    <Combobox 
+                        options={customerOptions}
+                        value={customerId}
+                        onValueChange={setCustomerId}
+                        placeholder="Select a regular customer"
+                    />
+                </div>
+                <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>
+                    Add New
+                </Button>
+            </div>
+        )}
+    </div>
 
-                                            <div className="space-y-2">
-                                                <Label htmlFor="orderDate">Order Date</Label>
-                                                <Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
-                                            </div>
-                                        </div>
+    <div className="space-y-2">
+        <Label htmlFor="orderDate">Order Date</Label>
+        <Input id="orderDate" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
+    </div>
+</div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             {isFirstOrder && !isEditMode && (
