@@ -1015,17 +1015,17 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!customerId && !isWalkIn) {
-			toast({ 
-				title: "Validation Error", 
-				description: 'Please select a customer or toggle Walk-In.', 
-				variant: 'destructive' 
-			});
-			return;
-		}
+
+        // 1. Validation Logic: Allow if walk-in is toggled or customer is selected
+        if (!isWalkIn && !customerId) {
+            toast({ 
+                title: "Validation Error", 
+                description: 'Please select a customer or toggle Walk-In.', 
+                variant: 'destructive' 
+            });
+            return;
         }
 
-		
         if (items.length === 0 && (!isFirstOrder || previousBalance <= 0)) {
             toast({
                 title: "Validation Error",
@@ -1035,14 +1035,22 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             return;
         }
         
-        const customer = customers.find(c => c.id === customerId);
-        if (!customer) return;
+        // 2. Resolve Customer (Virtual object for Walk-In, DB lookup for Regular)
+        const customer = isWalkIn 
+            ? { id: 'walk-in', name: 'Walk-In Customer', address: 'Counter Sale', phone: '' }
+            : customers.find(c => c.id === customerId);
+
+        if (!customer) {
+            toast({ title: "Error", description: "Customer data not found.", variant: "destructive" });
+            return;
+        }
         
         const isOpeningBalanceOrder = isFirstOrder && previousBalance > 0 && items.length === 0;
 
+        // 3. Construct Order Data
         let orderData: any = {
-            id: isEditMode ? existingOrder.id : '',
-            customerId,
+            id: isEditMode ? existingOrder?.id : '',
+            customerId: isWalkIn ? 'walk-in' : customerId,
             orderDate,
             customerName: customer.name,
             items: isOpeningBalanceOrder ? [{
@@ -1059,22 +1067,19 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             }] : items.map(item => {
                 const product = products.find(p => p.id === item.productId);
                 const orderItem: OrderItem = {
-					productId: item.productId,
-					productName: product?.name || 'Unknown',
-					quantity: parseFloat(item.quantity) || 0,
-					price: parseFloat(item.price) || 0,
-					cost: parseFloat(item.cost) || 0,
-					gst: parseFloat(item.gst) || 0,
-					// Use optional chaining or fallbacks to ensure these aren't undefined
-					calculationType: product?.calculationType || 'Per Unit',
-					category: product?.category || 'General',
-					sku: product?.sku || "",
-					total: 0, // Add a default total to satisfy the OrderItem interface
-				};
+                    productId: item.productId,
+                    productName: product?.name || 'Unknown',
+                    quantity: parseFloat(item.quantity) || 0,
+                    price: parseFloat(item.price) || 0,
+                    cost: parseFloat(item.cost) || 0,
+                    gst: parseFloat(item.gst) || 0,
+                    calculationType: product?.calculationType || 'Per Unit',
+                    category: product?.category || 'General',
+                    sku: product?.sku || "",
+                    total: 0,
+                };
 
-                if (product?.brand) {
-                    orderItem.brand = product.brand;
-                }
+                if (product?.brand) orderItem.brand = product.brand;
                 
                 let itemSubtotal = 0;
                 if (product && isWeightBased(product.category)) {
@@ -1085,7 +1090,6 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                 }
                 
                 orderItem.total = isGstInvoice ? itemSubtotal * (1 + (orderItem.gst || 0) / 100) : itemSubtotal;
-
                 return orderItem;
             }),
             total: isOpeningBalanceOrder ? previousBalance : currentInvoiceTotal,
@@ -1099,18 +1103,14 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             isOpeningBalance: isOpeningBalanceOrder,
         };
 
-        if (deliveryDate) {
-            orderData.deliveryDate = deliveryDate;
-        }
+        if (deliveryDate) orderData.deliveryDate = deliveryDate;
 
         if (paymentTerm === 'Credit') {
-            orderData.payments = isEditMode ? existingOrder.payments : [];
+            orderData.payments = isEditMode ? existingOrder?.payments : [];
             orderData.balanceDue = orderData.grandTotal;
             orderData.status = 'Pending';
-             if (dueDate) {
-                orderData.dueDate = dueDate;
-            }
-        } else { // Full Payment
+            if (dueDate) orderData.dueDate = dueDate;
+        } else {
             orderData.payments = [{
                 id: 'temp-payment-id',
                 paymentDate: orderDate,
@@ -1122,20 +1122,16 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             orderData.status = 'Fulfilled';
         }
         
-        if (isEditMode) {
-             try {
+        // 4. Submit to Database
+        try {
+            if (isEditMode) {
                 await onOrderUpdated(orderData as Order);
-                resetForm();
-            } catch(e) {
-                // error is toasted in parent
+            } else {
+                await onOrderAdded(orderData as Omit<Order, 'id' | 'customerName'>);
             }
-        } else {
-             try {
-               await onOrderAdded(orderData as Omit<Order, 'id' | 'customerName'>);
-               resetForm();
-           } catch (e) {
-                // Error is already toasted in the parent component
-           }
+            resetForm();
+        } catch (e) {
+            console.error("Submission failed", e);
         }
     };
 
