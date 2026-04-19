@@ -193,8 +193,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
         
         const whatsappUrl = `https://wa.me/${finalPhone}?text=${message}`;
         window.open(whatsappUrl, '_blank');
-    };
-    };
+    }; // Only ONE closing brace here.
 
     const handlePrint = async () => {
         if (!orderToPrint) return;
@@ -530,19 +529,10 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
 
     if (!isMounted) {
         return (
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <Skeleton className="h-10 w-48" />
-                    <Skeleton className="h-10 w-32" />
-                </div>
-                <div className="flex items-center gap-4">
-                    <Skeleton className="h-10 w-64" />
-                    <Skeleton className="h-10 w-48" />
-                </div>
-                <div className="rounded-lg border shadow-sm p-4">
-                    <Skeleton className="h-8 w-full mb-4" />
-                    <Skeleton className="h-8 w-full mb-2" />
-                    <Skeleton className="h-8 w-full mb-2" />
+            <div className="space-y-4 p-6">
+                <Skeleton className="h-10 w-48" />
+                <div className="rounded-lg border p-4 space-y-2">
+                    <Skeleton className="h-8 w-full" />
                     <Skeleton className="h-8 w-full" />
                 </div>
             </div>
@@ -585,7 +575,6 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                 </Select>
             </div>
 
-            {/* Desktop Table View */}
             <div className="hidden md:block rounded-lg border shadow-sm overflow-x-auto">
                 <Table className="min-w-[800px]">
                     <TableHeader>
@@ -628,7 +617,6 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                 </Table>
             </div>
 
-            {/* Mobile Card View */}
             <div className="grid gap-4 md:hidden">
                 {filteredOrders.map((order) => (
                     <Card key={order.id}>
