@@ -175,19 +175,37 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
     }, [orderToPrint]);
 
     const handleWhatsAppShare = (order: Order) => {
-        const customer = isWalkIn 
-			? { id: 'walk-in', name: 'Walk-In Customer', address: 'Counter Sale', phone: '' }
-			: customers.find(c => c.id === customerId);
+        // 1. Find the customer linked to this specific order
+        const customer = customers.find(c => c.id === order.customerId);
+
         if (!customer || !customer.phone) {
-            toast({ title: 'Error', description: "Customer's phone number is not available.", variant: 'destructive'});
+            toast({ 
+                title: 'WhatsApp Error', 
+                description: `Cannot find a phone number for ${order.customerName}.`, 
+                variant: 'destructive'
+            });
             return;
         }
         
+        // 2. Clean the phone number (remove spaces, dashes, etc.)
         const sanitizedPhone = customer.phone.replace(/\D/g, '');
-        const formattedAmount = formatNumberForDisplay(order.grandTotal).replace(/\u00A0/g, ' '); 
-        const message = `Hello ${customer.name}, here is your invoice ${order.id.replace('ORD', 'INV')}. Total amount: ${formattedAmount}. Thank you for your business!`;
-        const whatsappUrl = `https://wa.me/${sanitizedPhone}?text=${encodeURIComponent(message)}`;
         
+        // 3. Add country code 91 if it's a 10-digit number
+        const finalPhone = sanitizedPhone.length === 10 ? `91${sanitizedPhone}` : sanitizedPhone;
+
+        // 4. Format the money for the message
+        const formattedAmount = new Intl.NumberFormat('en-IN', { 
+            style: 'currency', 
+            currency: 'INR' 
+        }).format(order.grandTotal).replace(/\u00A0/g, ' '); 
+
+        // 5. Build the message
+        const invoiceId = order.id.replace('ORD', 'INV');
+        const message = `Hello *${customer.name}*,%0A%0AHere is your invoice *${invoiceId}* from *AB Agency*.%0A%0A*Total Amount:* ${formattedAmount}%0A%0AThank you for your business!`;
+        
+        const whatsappUrl = `https://wa.me/${finalPhone}?text=${message}`;
+        
+        // 6. Launch
         window.open(whatsappUrl, '_blank');
     };
 
