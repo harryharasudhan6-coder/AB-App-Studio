@@ -140,8 +140,10 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
     const filteredOrders = useMemo(() => {
         const now = new Date();
         let filtered = sortedOrders.filter(order =>
-            order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+            order.status !== 'Deleted' && order.status !== 'Canceled' && (
+                order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                order.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+            )
         );
 
         if (dateFilter !== 'All') {
@@ -805,6 +807,9 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
     const resetForm = useCallback(() => {
         setCustomerId('');
+        setIsWalkIn(false);
+        setWalkInName('');
+        setWalkInPhone('');
         setOrderDate(new Date().toISOString().split('T')[0]);
         setItems([]);
         setCurrentItem(initialItemState);
@@ -823,10 +828,25 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
         setIsFirstOrder(false);
         onOpenChange(false);
     }, [onOpenChange]);
-    
+	
     useEffect(() => {
         if (isOpen && existingOrder) {
-            setCustomerId(existingOrder.customerId);
+            // Check if this was a Walk-In order by looking for the suffix
+            const isOrderWalkIn = existingOrder.customerName.includes('(Walk-In)');
+            setIsWalkIn(isOrderWalkIn);
+
+            if (isOrderWalkIn) {
+                // Clean the name and find the phone from the customer database
+                setWalkInName(existingOrder.customerName.replace(' (Walk-In)', ''));
+                const cust = customers.find(c => c.id === existingOrder.customerId);
+                setWalkInPhone(cust?.phone || '');
+                setCustomerId(''); // Clear the select box since it's a Walk-In
+            } else {
+                setCustomerId(existingOrder.customerId);
+                setWalkInName('');
+                setWalkInPhone('');
+            }
+
             setOrderDate(new Date(existingOrder.orderDate).toISOString().split('T')[0]);
             setItems(existingOrder.items.map(item => {
                 const product = products.find(p => p.id === item.productId);
@@ -839,16 +859,19 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                     stock: (product?.stock ?? 0) + (isEditMode ? item.quantity : 0),
                     calculationType: item.calculationType || 'Per Unit',
                     category: product?.category || 'General',
-                    weightPerUnit: product?.weightPerUnit || 0
+                    weightPerUnit: product?.weightPerUnit || 0,
+                    totalWeight: ''
                 }
             }));
+            
             setPaymentTerm(existingOrder.paymentTerm);
-            if(existingOrder.paymentTerm === 'Full Payment' && existingOrder.payments && existingOrder.payments.length > 0) {
+            if (existingOrder.paymentTerm === 'Full Payment' && existingOrder.payments && existingOrder.payments.length > 0) {
                 setPaymentMode(existingOrder.payments[0].method || 'Cash');
                 setPaymentRemarks(existingOrder.payments[0].notes || '');
             } else {
                 setDueDate(existingOrder.dueDate ? new Date(existingOrder.dueDate).toISOString().split('T')[0] : '');
             }
+            
             setDeliveryDate(existingOrder.deliveryDate ? new Date(existingOrder.deliveryDate).toISOString().split('T')[0] : '');
             setDeliveryAddress(existingOrder.deliveryAddress || '');
             setIsGstInvoice(existingOrder.isGstInvoice);
@@ -856,9 +879,13 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             setEnableDiscount(existingOrder.discount > 0);
             setDeliveryFees(existingOrder.deliveryFees);
             setPreviousBalance(existingOrder.previousBalance);
+
         } else if (isOpen && !existingOrder) {
-            // For new orders, always reset the form but keep dialog open
+            // --- NEW ORDER RESET ---
             setCustomerId('');
+            setIsWalkIn(false);
+            setWalkInName('');
+            setWalkInPhone('');
             setOrderDate(new Date().toISOString().split('T')[0]);
             setItems([]);
             setPaymentTerm('Full Payment');
@@ -866,9 +893,11 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             setDiscount(0);
             setDeliveryFees(0);
             setEnableDiscount(false);
-			setDeliveryAddress('');
-
+            setDeliveryAddress('');
+            setPaymentMode('Cash');
+            setPaymentRemarks('');
         }
+    
     }, [isOpen, existingOrder, products, isEditMode]);
 
 
