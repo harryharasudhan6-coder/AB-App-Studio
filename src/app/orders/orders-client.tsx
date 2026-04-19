@@ -1081,8 +1081,11 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             return;
         }
 
-        // --- UPDATED STATUS & BALANCE LOGIC ---
-        const isPaidInFull = paymentTerm === 'Full Payment';
+        // --- BULLETPROOF STATUS & BALANCE LOGIC ---
+        // We use .includes and .toLowerCase to make sure "Full payment", "Paid", or "Full Payment" all work.
+        const term = (paymentTerm || '').toLowerCase();
+        const isPaidInFull = term.includes('full') || term.includes('paid');
+        
         const currentStatus = isPaidInFull ? 'Fulfilled' : 'Pending';
         const balanceRemaining = isPaidInFull ? 0 : grandTotal;
 
@@ -1109,7 +1112,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             paymentTerm: paymentTerm,
             deliveryAddress: deliveryAddress || 'Counter Sale',
             isGstInvoice: isGstInvoice,
-            status: currentStatus,
+            status: currentStatus, // This will now correctly be 'Fulfilled'
             balanceDue: balanceRemaining
         };
 
@@ -1124,11 +1127,11 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             }];
         }
 
-        try {
-            if (isEditMode) {
-                await onOrderUpdated({ ...orderData, id: existingOrder?.id });
-            } else {
-                await onOrderAdded(orderData);
+			try {
+				if (isEditMode) {
+					await onOrderUpdated({ ...orderData, id: existingOrder?.id });
+				} else {
+					await onOrderAdded(orderData);
             }
             resetForm();
             toast({ title: "Success", description: `Order ${currentStatus} successfully!` });
