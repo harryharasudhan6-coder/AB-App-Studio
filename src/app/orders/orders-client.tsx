@@ -564,6 +564,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                     </Button>
                 </div>
             </div>
+
             <div className="flex items-center gap-4">
                 <Input 
                     placeholder="Search by Order ID or Customer Name..."
@@ -583,67 +584,41 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                     </SelectContent>
                 </Select>
             </div>
+
             {/* Desktop Table View */}
             <div className="hidden md:block rounded-lg border shadow-sm overflow-x-auto">
                 <Table className="min-w-[800px]">
                     <TableHeader>
                         <TableRow>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestSort('id')}>Order ID <ArrowUpDown className="ml-2 h-4 w-4" /></Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestSort('customerName')}>Customer <ArrowUpDown className="ml-2 h-4 w-4" /></Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestSort('orderDate')}>Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button>
-                            </TableHead>
-                            <TableHead>
-                                <Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button>
-                            </TableHead>
-                            <TableHead className="text-right">
-                                <Button variant="ghost" onClick={() => requestSort('grandTotal')}>Total <ArrowUpDown className="ml-2 h-4 w-4" /></Button>
-                            </TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('id')}>Order ID <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('customerName')}>Customer <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('orderDate')}>Date <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead><Button variant="ghost" onClick={() => requestSort('status')}>Status <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                            <TableHead className="text-right"><Button variant="ghost" onClick={() => requestSort('grandTotal')}>Total <ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                             <TableHead className="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredOrders.map((order) => (
-                            <TableRow key={order.id} className="transition-transform hover:-translate-y-px hover:shadow-md">
+                            <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.id}</TableCell>
                                 <TableCell>{order.customerName}</TableCell>
                                 <TableCell>{new Date(order.orderDate).toLocaleDateString('en-IN')}</TableCell>
                                 <TableCell>
-                                    <Badge variant={order.status === 'Fulfilled' ? 'default' : order.status === 'Pending' ? 'secondary' : order.status === 'Part Payment' ? 'outline' : 'destructive'} className="capitalize">{order.status}</Badge>
+                                    <Badge variant={order.status === 'Fulfilled' ? 'default' : order.status === 'Pending' ? 'secondary' : 'outline'}>{order.status}</Badge>
                                 </TableCell>
-                                <TableCell className="text-right">
-                                    {formatNumberForDisplay(order.grandTotal)}
-                                </TableCell>
+                                <TableCell className="text-right">{formatNumberForDisplay(order.grandTotal)}</TableCell>
                                 <TableCell className="text-center">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                                <span className="sr-only">Open menu</span>
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
+                                            <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => openEditDialog(order)} disabled={order.status === 'Canceled' || isLoading}>
-                                                <Edit className="mr-2 h-4 w-4" />
-                                                Edit
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleGenerateInvoice(order)} disabled={isLoading || order.status === 'Canceled'}>
-                                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :<FileText className="mr-2 h-4 w-4" />}
-                                                Generate Invoice
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleWhatsAppShare(order)} disabled={order.status === 'Canceled'}>
-                                                <Share2 className="mr-2 h-4 w-4" />
-                                                Share via WhatsApp
-                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => openEditDialog(order)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleGenerateInvoice(order)}><FileText className="mr-2 h-4 w-4" /> Generate Invoice</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleWhatsAppShare(order)}><Share2 className="mr-2 h-4 w-4" /> Share via WhatsApp</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => setOrderToDelete(order)} className="text-red-600">
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                Delete
-                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setOrderToDelete(order)} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
@@ -652,71 +627,30 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                     </TableBody>
                 </Table>
             </div>
-             {/* Mobile Card View */}
+
+            {/* Mobile Card View */}
             <div className="grid gap-4 md:hidden">
                 {filteredOrders.map((order) => (
-                     <Card key={order.id}>
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <CardTitle>{order.id}</CardTitle>
-                                    <CardDescription>{order.customerName}</CardDescription>
-                                </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0 -mt-2 -mr-2">
-                                            <span className="sr-only">Open menu</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => openEditDialog(order)} disabled={order.status === 'Canceled' || isLoading}>
-                                            <Edit className="mr-2 h-4 w-4" />
-                                            Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleGenerateInvoice(order)} disabled={isLoading || order.status === 'Canceled'}>
-                                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :<FileText className="mr-2 h-4 w-4" />}
-                                            Generate Invoice
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleWhatsAppShare(order)} disabled={order.status === 'Canceled'}>
-                                            <Share2 className="mr-2 h-4 w-4" />
-                                            Share via WhatsApp
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => setOrderToDelete(order)} className="text-red-600">
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Delete
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                    <Card key={order.id}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{order.id}</CardTitle>
+                            <Badge variant={order.status === 'Fulfilled' ? 'default' : 'secondary'}>{order.status}</Badge>
                         </CardHeader>
-                        <CardContent className="space-y-2">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">Date</span>
-                                <span>{new Date(order.orderDate).toLocaleDateString('en-IN')}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">Status</span>
-                                 <Badge variant={order.status === 'Fulfilled' ? 'default' : order.status === 'Pending' ? 'secondary' : order.status === 'Part Payment' ? 'outline' : 'destructive'} className="capitalize">{order.status}</Badge>
-                            </div>
-                            <div className="flex justify-between items-center text-sm pt-2">
-                                <span className="font-bold">Total</span>
-                                <span className="font-bold">{formatNumberForDisplay(order.grandTotal)}</span>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatNumberForDisplay(order.grandTotal)}</div>
+                            <p className="text-xs text-muted-foreground">{order.customerName}</p>
+                            <div className="flex justify-end gap-2 mt-4">
+                                <Button size="sm" variant="outline" onClick={() => handleWhatsAppShare(order)}><Share2 className="h-4 w-4" /></Button>
+                                <Button size="sm" onClick={() => handleGenerateInvoice(order)}><FileText className="h-4 w-4" /></Button>
                             </div>
                         </CardContent>
                     </Card>
                 ))}
             </div>
-            
+
             <AddOrderDialog
                 isOpen={isAddOrderOpen || !!orderToEdit}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setIsAddOrderOpen(false);
-                        setOrderToEdit(null);
-                    }
-                }}
+                onOpenChange={(open) => { if (!open) { setIsAddOrderOpen(false); setOrderToEdit(null); } }}
                 customers={customers}
                 products={products}
                 orders={orders}
@@ -729,15 +663,12 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
             <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete order <strong>{orderToDelete?.id}</strong>. 
-                        This will also restore the item quantities to the inventory stock and recalculate customer balances.
-                    </AlertDialogDescription>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>This action will permanently delete order {orderToDelete?.id}. Item quantities will be restored to stock.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteOrder}>Delete</AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteOrder}>Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
