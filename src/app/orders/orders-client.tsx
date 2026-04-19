@@ -1022,19 +1022,19 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
         let finalCustomerName = '';
 
         if (isWalkIn) {
-            if (!walkInName || !walkInPhone) {
-                toast({ title: "Missing Info", description: "Name and Phone are required for walk-ins.", variant: "destructive" });
+            if (!walkInName) {
+                toast({ title: "Name Required", description: "Please enter a customer name.", variant: "destructive" });
                 return;
             }
 
-            // Check if this phone already exists to prevent duplicates
-            const existing = customers.find(c => c.phone?.replace(/\D/g,'').includes(walkInPhone.replace(/\D/g,'')));
+            const cleanPhone = walkInPhone.replace(/\D/g,'');
+            const existing = cleanPhone ? customers.find(c => c.phone?.replace(/\D/g,'').includes(cleanPhone)) : null;
             
             if (existing) {
                 finalCustomerId = existing.id;
                 finalCustomerName = existing.name;
+                toast({ title: "Linking to Profile", description: `Order added to existing record: ${existing.name}` });
             } else {
-                // Truly a new customer - create them with a Walk-In tag
                 const newCust = await onCustomerAdded({
                     name: `${walkInName} (Walk-In)`,
                     phone: walkInPhone,
@@ -1044,11 +1044,14 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                 if (newCust) {
                     finalCustomerId = newCust.id;
                     finalCustomerName = newCust.name;
-                } else return;
+                } else {
+                    toast({ title: "Error", description: "Failed to create customer record.", variant: "destructive" });
+                    return;
+                }
             }
         } else {
             if (!customerId) {
-                toast({ title: "Error", description: "Select a customer.", variant: "destructive" });
+                toast({ title: "Selection Required", description: "Please select a customer.", variant: "destructive" });
                 return;
             }
             const customer = customers.find(c => c.id === customerId);
@@ -1056,41 +1059,64 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
         }
 
         if (items.length === 0) {
-            toast({ title: "Error", description: "Add at least one item.", variant: "destructive" });
+            toast({ title: "Empty Order", description: "Please add at least one item.", variant: "destructive" });
             return;
         }
+
+        // --- UPDATED STATUS & BALANCE LOGIC ---
+        const isPaidInFull = paymentTerm === 'Full Payment';
+        const currentStatus = isPaidInFull ? 'Fulfilled' : 'Pending';
+        const balanceRemaining = isPaidInFull ? 0 : grandTotal;
 
         const orderData: any = {
             customerId: finalCustomerId,
             customerName: finalCustomerName,
             orderDate,
-            items: items.map(item => ({
-                ...item,
-                quantity: parseFloat(item.quantity),
-                price: parseFloat(item.price),
-                total: parseFloat(item.quantity) * parseFloat(item.price)
-            })),
+            items: items.map(item => {
+                const product = products.find(p => p.id === item.productId);
+                return {
+                    ...item,
+                    productName: product?.name || 'Unknown',
+                    quantity: parseFloat(item.quantity) || 0,
+                    price: parseFloat(item.price) || 0,
+                    total: (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0),
+                    gst: parseFloat(item.gst) || 0
+                };
+            }),
             total: currentInvoiceTotal,
-            previousBalance,
-            discount,
-            deliveryFees,
-            grandTotal,
-            paymentTerm,
+            previousBalance: previousBalance,
+            discount: discount,
+            deliveryFees: deliveryFees,
+            grandTotal: grandTotal,
+            paymentTerm: paymentTerm,
             deliveryAddress: deliveryAddress || 'Counter Sale',
-            isGstInvoice,
-            status: paymentTerm === 'Full Payment' ? 'Fulfilled' : 'Pending'
+            isGstInvoice: isGstInvoice,
+            status: currentStatus,
+            balanceDue: balanceRemaining
         };
+
+        // For Full Payment, we attach the payment record immediately
+        if (isPaidInFull) {
+            orderData.payments = [{
+                id: `pay_${Date.now()}`,
+                paymentDate: orderDate,
+                amount: grandTotal,
+                method: paymentMode || 'Cash',
+                notes: paymentRemarks || 'Counter Sale'
+            }];
+        }
 
         try {
             if (isEditMode) {
-                await onOrderUpdated({ ...orderData, id: existingOrder.id });
+                await onOrderUpdated({ ...orderData, id: existingOrder?.id });
             } else {
                 await onOrderAdded(orderData);
             }
             resetForm();
-            toast({ title: "Success", description: "Order placed successfully!" });
+            toast({ title: "Success", description: `Order ${currentStatus} successfully!` });
         } catch (e) {
-            console.error(e);
+            console.error("Master List Error:", e);
+            toast({ title: "Submission Failed", description: "Check your connection.", variant: "destructive" });
         }
     };
 
@@ -1296,6 +1322,8 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                                             <TableCell className="space-x-2">
                                                                 <Button type="button" size="sm" variant="outline" onClick={() => handleEditItemClick(index)}>Edit</Button>
                                                                 <Button type="button" size="sm" variant="destructive" onClick={() => handleRemoveItem(index)}>Delete</Button>
+																
+																
                                                             </TableCell>
                                                         </TableRow>
                                                     ))}
