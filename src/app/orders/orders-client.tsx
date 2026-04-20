@@ -688,6 +688,8 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     const [customerId, setCustomerId] = useState('');
     const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
     const [items, setItems] = useState<OrderItemState[]>([]);
+	const [partPaymentAmount, setPartPaymentAmount] = useState<string>('');
+	
     const [currentItem, setCurrentItem] = useState<OrderItemState>(initialItemState);
     const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
@@ -735,22 +737,22 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 	
     useEffect(() => {
         if (isOpen && existingOrder) {
-            // Check if this was a Walk-In order by looking for the suffix
+            // 1. Handle Walk-In detection
             const isOrderWalkIn = existingOrder.customerName.includes('(Walk-In)');
             setIsWalkIn(isOrderWalkIn);
 
             if (isOrderWalkIn) {
-                // Clean the name and find the phone from the customer database
                 setWalkInName(existingOrder.customerName.replace(' (Walk-In)', ''));
                 const cust = customers.find(c => c.id === existingOrder.customerId);
                 setWalkInPhone(cust?.phone || '');
-                setCustomerId(''); // Clear the select box since it's a Walk-In
+                setCustomerId('');
             } else {
                 setCustomerId(existingOrder.customerId);
                 setWalkInName('');
                 setWalkInPhone('');
             }
 
+            // 2. Load basic order info
             setOrderDate(new Date(existingOrder.orderDate).toISOString().split('T')[0]);
             setItems(existingOrder.items.map(item => {
                 const product = products.find(p => p.id === item.productId);
@@ -768,14 +770,27 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                 }
             }));
             
+            // 3. Handle Payment Terms & States
             setPaymentTerm(existingOrder.paymentTerm);
-            if (existingOrder.paymentTerm === 'Full Payment' && existingOrder.payments && existingOrder.payments.length > 0) {
+            
+            if (existingOrder.paymentTerm === 'Full Payment' && existingOrder.payments?.length > 0) {
                 setPaymentMode(existingOrder.payments[0].method || 'Cash');
                 setPaymentRemarks(existingOrder.payments[0].notes || '');
-            } else {
+                setPartPaymentAmount('');
+            } 
+            else if (existingOrder.paymentTerm === 'Part Payment') {
+                if (existingOrder.payments?.length > 0) {
+                    setPaymentMode(existingOrder.payments[0].method || 'Cash');
+                    setPaymentRemarks(existingOrder.payments[0].notes || '');
+                }
+                setPartPaymentAmount(''); // Keep clear for fresh entries while editing
+            } 
+            else {
                 setDueDate(existingOrder.dueDate ? new Date(existingOrder.dueDate).toISOString().split('T')[0] : '');
+                setPartPaymentAmount('');
             }
             
+            // 4. Load remaining fields
             setDeliveryDate(existingOrder.deliveryDate ? new Date(existingOrder.deliveryDate).toISOString().split('T')[0] : '');
             setDeliveryAddress(existingOrder.deliveryAddress || '');
             setIsGstInvoice(existingOrder.isGstInvoice);
@@ -790,6 +805,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             setIsWalkIn(false);
             setWalkInName('');
             setWalkInPhone('');
+            setPartPaymentAmount('');
             setOrderDate(new Date().toISOString().split('T')[0]);
             setItems([]);
             setPaymentTerm('Full Payment');
@@ -801,8 +817,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             setPaymentMode('Cash');
             setPaymentRemarks('');
         }
-    
-    }, [isOpen, existingOrder, products, isEditMode]);
+    }, [isOpen, existingOrder, products, customers, isEditMode]);
 
 
     useEffect(() => {
@@ -1198,38 +1213,70 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                             </div>
                                             
                                             <div className="space-y-2 pt-4">
-                                                <Label>Payment Term</Label>
-                                                <RadioGroup value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as PaymentTerm)} className="flex gap-4">
-                                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Full Payment" id="full_payment" /><Label htmlFor="full_payment">Full Payment</Label></div>
-                                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Credit" id="credit" /><Label htmlFor="credit">Credit</Label></div>
-                                                </RadioGroup>
-                                            </div>
-                                            {paymentTerm === 'Full Payment' && (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label>Payment Mode</Label>
-                                                    <Select value={paymentMode} onValueChange={v => setPaymentMode(v as PaymentMode)}>
-                                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                                        <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="Card">Card</SelectItem><SelectItem value="UPI">UPI</SelectItem><SelectItem value="Cheque">Cheque</SelectItem><SelectItem value="Online Transfer">Online Transfer</SelectItem></SelectContent>
-                                                    </Select>
-                                                </div>
-                                                {(paymentMode === 'Card' || paymentMode === 'Cheque') && (
-                                                    <div className="space-y-2">
-                                                        <Label>Payment Remarks</Label>
-                                                        <Input value={paymentRemarks} onChange={e => setPaymentRemarks(e.target.value)} placeholder="Enter details"/>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            )}
-                                            {paymentTerm === 'Credit' && (
-                                            <div className="space-y-2">
-                                                <Label>Due Date</Label>
-                                                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-                                            </div>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
+												<Label className="font-bold">Payment Term</Label>
+												<RadioGroup value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as PaymentTerm)} className="flex gap-4">
+													<div className="flex items-center space-x-2">
+													<RadioGroupItem value="Full Payment" id="full_payment" />
+													<Label htmlFor="full_payment">Full Payment</Label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<RadioGroupItem value="Part Payment" id="part_payment" />
+													<Label htmlFor="part_payment" className="text-blue-600 font-semibold">Part Payment</Label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<RadioGroupItem value="Credit" id="credit" />
+													<Label htmlFor="credit">Credit</Label>
+												</div>
+											</RadioGroup>
+										</div>
+
+										{/* NEW: Part Payment Amount Box */}
+										{paymentTerm === 'Part Payment' && (
+											<div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in zoom-in-95 duration-200">
+												<Label htmlFor="part_amt" className="text-[10px] uppercase font-bold text-blue-700">Advance Amount Collected Now (₹)</Label>
+												<Input 
+													id="part_amt"
+													type="number" 
+													placeholder="e.g. 5000" 
+													value={partPaymentAmount} 
+													onChange={e => setPartPaymentAmount(e.target.value)}
+													className="bg-white border-blue-300 h-10 text-lg font-semibold"
+												/>
+											</div>
+										)}
+
+										{/* Show Mode/Remarks for BOTH Full and Part Payments */}
+										{(paymentTerm === 'Full Payment' || paymentTerm === 'Part Payment') && (
+											<div className="grid grid-cols-2 gap-4 pt-2">
+												<div className="space-y-2">
+													<Label>Payment Mode</Label>
+														<Select value={paymentMode} onValueChange={v => setPaymentMode(v as PaymentMode)}>
+															<SelectTrigger><SelectValue /></SelectTrigger>
+															<SelectContent>
+																<SelectItem value="Cash">Cash</SelectItem>
+																<SelectItem value="UPI">UPI</SelectItem>
+																<SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+																<SelectItem value="Cheque">Cheque</SelectItem>
+															</SelectContent>
+														</Select>
+													</div>
+													<div className="space-y-2">
+														<Label>Payment Remarks</Label>
+														<Input 
+															value={paymentRemarks} 
+															onChange={e => setPaymentRemarks(e.target.value)} 
+															placeholder="Reference info..."
+														/>
+													</div>
+												</div>
+											)}
+
+											{paymentTerm === 'Credit' && (
+												<div className="space-y-2 pt-2">
+													<Label>Due Date</Label>
+													<Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+												</div>
+											)}
 
                                 <Card>
                                     <CardContent className="p-4 space-y-4">
