@@ -1031,11 +1031,46 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
         // --- BULLETPROOF STATUS & BALANCE LOGIC ---
         // We use .includes and .toLowerCase to make sure "Full payment", "Paid", or "Full Payment" all work.
+        // --- SCRUTINY MASTER: Unified Payment & Status Logic ---
         const term = (paymentTerm || '').toLowerCase();
-        const isPaidInFull = term.includes('full') || term.includes('paid');
-        
-        const currentStatus = isPaidInFull ? 'Fulfilled' : 'Pending';
-        const balanceRemaining = isPaidInFull ? 0 : grandTotal;
+        let currentStatus = 'Pending';
+        let initialPayments = [];
+
+        if (term.includes('full')) {
+            // Logic for 100% Payment
+            currentStatus = 'Fulfilled';
+            initialPayments = [{
+                id: `pay_${Date.now()}`,
+                date: orderDate,
+                amount: grandTotal,
+                mode: paymentMode,
+                notes: paymentRemarks || 'Full Payment on Order'
+            }];
+        } else if (term === 'part payment') {
+            // Logic for Partial Payment
+            const paidNow = parseFloat(partPaymentAmount) || 0;
+            
+            // Scrutiny Check: If they paid the exact total, mark as Fulfilled anyway
+            if (paidNow >= grandTotal) {
+                currentStatus = 'Fulfilled';
+            } else {
+                currentStatus = 'Partially Paid';
+            }
+
+            if (paidNow > 0) {
+                initialPayments = [{
+                    id: `pay_${Date.now()}`,
+                    date: orderDate,
+                    amount: paidNow,
+                    mode: paymentMode,
+                    notes: paymentRemarks || 'Initial Part Payment'
+                }];
+            }
+        } 
+        // If it's 'Credit', initialPayments remains an empty array []
+
+        const totalPaidNow = initialPayments.reduce((sum, p) => sum + p.amount, 0);
+        const balanceRemaining = grandTotal - totalPaidNow;
 
         const orderData: any = {
             customerId: finalCustomerId,
@@ -1060,34 +1095,10 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             paymentTerm: paymentTerm,
             deliveryAddress: deliveryAddress || 'Counter Sale',
             isGstInvoice: isGstInvoice,
-            status: currentStatus, // This will now correctly be 'Fulfilled'
-            balanceDue: balanceRemaining
+            status: currentStatus,
+            balanceDue: balanceRemaining,
+            payments: initialPayments 
         };
-
-        // For Full Payment, we attach the payment record immediately
-        if (isPaidInFull) {
-            orderData.payments = [{
-                id: `pay_${Date.now()}`,
-                paymentDate: orderDate,
-                amount: grandTotal,
-                method: paymentMode || 'Cash',
-                notes: paymentRemarks || 'Counter Sale'
-            }];
-        }
-
-			try {
-				if (isEditMode) {
-					await onOrderUpdated({ ...orderData, id: existingOrder?.id });
-				} else {
-					await onOrderAdded(orderData);
-            }
-            resetForm();
-            toast({ title: "Success", description: `Order ${currentStatus} successfully!` });
-        } catch (e) {
-            console.error("Master List Error:", e);
-            toast({ title: "Submission Failed", description: "Check your connection.", variant: "destructive" });
-        }
-    };
 
     const customerOptions = useMemo(() => customers.map(c => ({ value: c.id, label: c.name })), [customers]);
     const productOptions = useMemo(() => {
@@ -1361,7 +1372,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                         </CardContent>
                                     </Card>
 
-                                    {/* Order Summary */}
+                                    {/* Order Summary Card */}
                                     <Card>
                                         <CardContent className="p-4 space-y-2">
                                             <DialogTitle className="text-lg mb-4">Order Summary</DialogTitle>
@@ -1398,14 +1409,16 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                             </div>
                                         </CardContent>
                                     </Card>
-                                </div>
-                            </div>
-                        </ScrollArea>
-                        <DialogFooter className="p-4 border-t">
-                            <Button type="button" variant="outline" onClick={() => resetForm()}>Cancel</Button>
-                            <Button type="submit">{isEditMode ? 'Update Order' : 'Submit Order'}</Button>
-                        </DialogFooter>
-                    </form>
+                                </div> {/* Closes the right column div */}
+                            </div> {/* Closes the main two-column grid div */}
+                        </form>
+                    </ScrollArea>
+                    <DialogFooter className="p-4 border-t">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button type="submit">
+                            {isEditMode ? 'Update Order' : 'Submit Order'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
