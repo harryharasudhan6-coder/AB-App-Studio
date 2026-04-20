@@ -1421,6 +1421,9 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+		</>
+    );
+}		
 
             <Dialog open={isAddCustomerOpen} onOpenChange={setIsAddCustomerOpen}>
                 <DialogContent aria-describedby={undefined}>
