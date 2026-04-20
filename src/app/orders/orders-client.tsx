@@ -1410,7 +1410,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                         </CardContent>
                                     </Card>
                                 </div>
-                            </div> 
+                            </div>
                         </form>
                     </ScrollArea>
                     <DialogFooter className="p-4 border-t">
