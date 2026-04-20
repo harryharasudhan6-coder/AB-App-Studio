@@ -1409,12 +1409,14 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                             </div>
                                         </CardContent>
                                     </Card>
-                                </div> {/* Closes the right column div */}
-                            </div> {/* Closes the main two-column grid div */}
+                                </div>
+                            </div> 
                         </form>
                     </ScrollArea>
                     <DialogFooter className="p-4 border-t">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+						Cancel
+						</Button>
                         <Button type="submit">
                             {isEditMode ? 'Update Order' : 'Submit Order'}
                         </Button>
