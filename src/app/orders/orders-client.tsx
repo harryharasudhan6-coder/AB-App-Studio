@@ -1396,11 +1396,11 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                                 <span>Current Items Total:</span> 
                                                 <span className="font-semibold">{formatNumberForDisplay(currentInvoiceTotal)}</span>
                                             </div>
-                                             <div className="flex justify-between items-center text-sm">
+                                            <div className="flex justify-between items-center text-sm">
                                                 <Label htmlFor="delivery_fees" className="flex-1">Delivery Fees</Label>
                                                 <Input type="number" placeholder="0.00" className="w-24 h-8" value={String(deliveryFees)} onChange={e => setDeliveryFees(parseFloat(e.target.value) || 0)} />
                                             </div>
-                                             <div className="flex justify-between items-center text-sm">
+                                            <div className="flex justify-between items-center text-sm">
                                                 <div className="flex items-center space-x-2">
                                                     <Checkbox id="enable_discount" checked={enableDiscount} onCheckedChange={c => setEnableDiscount(c as boolean)} />
                                                     <Label htmlFor="enable_discount" className="flex-1">Discount</Label>
@@ -1429,36 +1429,37 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                             </div>
                         </form>
                     </ScrollArea>
-                    <DialogFooter className="p-4 border-t">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-							Cancel
-						</Button>
-                        <Button type="submit">
+                    <DialogFooter className="p-4 border-t gap-2">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button type="submit" form="order-form">
                             {isEditMode ? 'Update Order' : 'Submit Order'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-		</>
-    );
-}		
 
             <Dialog open={isAddCustomerOpen} onOpenChange={setIsAddCustomerOpen}>
-                <DialogContent aria-describedby={undefined}>
-                    <DialogHeader><DialogTitle>Add New Customer</DialogTitle><DialogDescription>Fill in the details below to add a new customer.</DialogDescription></DialogHeader>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New Customer</DialogTitle>
+                    </DialogHeader>
                     <form onSubmit={handleAddCustomerSubmit}>
                         <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="name" className="text-right">Name</Label><Input id="name" name="name" className="col-span-3" required /></div>
-                            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="phone" className="text-right">Phone</Label><Input id="phone" name="phone" className="col-span-3" /></div>
-                            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="address" className="text-right">Address</Label><Input id="address" name="address" className="col-span-3" /></div>
-                            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="gstin" className="text-right">GSTIN</Label><Input id="gstin" name="gstin" className="col-span-3" /></div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">Name</Label>
+                                <Input id="name" name="name" className="col-span-3" required />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="phone" className="text-right">Phone</Label>
+                                <Input id="phone" name="phone" className="col-span-3" />
+                            </div>
                         </div>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(false)}>Cancel</Button>
                             <Button type="submit">Save Customer</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
+        </>
     );
 }
