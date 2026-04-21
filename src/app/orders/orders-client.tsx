@@ -1,5 +1,7 @@
 'use client';
 
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -86,25 +88,28 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, onOrderAdde
     const [customerId, setCustomerId] = useState('');
     const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
     const { toast } = useToast();
+	const [isWalkIn, setIsWalkIn] = useState(false);
+	const [walkInName, setWalkInName] = useState('');
+	const [walkInPhone, setWalkInPhone] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const payload = {
-                customerId,
-                customerName: customers.find((c: any) => c.id === customerId)?.name || 'Walk-In',
-                orderDate,
-                items: [],
-                grandTotal: 0,
-                status: 'Pending'
-            };
-            await onOrderAdded(payload);
-            onOpenChange(false);
-            toast({ title: "Order Created" });
-        } catch (err) {
-            toast({ title: "Error", variant: "destructive" });
-        }
-    };
+		e.preventDefault();
+		try {
+			const payload = {
+				customerId: isWalkIn ? 'walk-in' : customerId,
+				customerName: isWalkIn ? `${walkInName} (Walk-In)` : (customers.find((c: any) => c.id === customerId)?.name || ''),
+				orderDate,
+				items: [],
+				grandTotal: 0,
+				status: 'Pending'
+			};
+			await onOrderAdded(payload);
+			onOpenChange(false);
+			toast({ title: "Order Created" });
+		} catch (err) {
+			toast({ title: "Error", variant: "destructive" });
+		}
+	};
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -114,10 +119,50 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, onOrderAdde
                         <DialogTitle>Quick Place Order</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Customer ID</Label>
-                            <Input value={customerId} onChange={e => setCustomerId(e.target.value)} placeholder="Enter ID" />
-                        </div>
+                        <div className="space-y-4">
+							<div className="space-y-2">
+								<Label>Customer Type</Label>
+								<RadioGroup 
+									value={isWalkIn ? 'wi' : 'reg'} 
+									onValueChange={(v) => setIsWalkIn(v === 'wi')} 
+									className="flex gap-4"
+								>
+									<div className="flex items-center space-x-2">
+										<RadioGroupItem value="reg" id="reg" />
+										<Label htmlFor="reg">Regular</Label>
+									</div>
+									<div className="flex items-center space-x-2">
+										<RadioGroupItem value="wi" id="wi" />
+										<Label htmlFor="wi">Walk-In</Label>
+									</div>
+								</RadioGroup>
+							</div>
+
+							{isWalkIn ? (
+								<div className="space-y-2">
+									<Label>Walk-In Name</Label>
+									<Input 
+										placeholder="Enter name" 
+										value={walkInName} 
+										onChange={e => setWalkInName(e.target.value)} 
+									/>
+								</div>
+							) : (
+								<div className="space-y-2">
+									<Label>Select Regular Customer</Label>
+									<Select value={customerId} onValueChange={setCustomerId}>
+										<SelectTrigger>
+											<SelectValue placeholder="Choose a customer" />
+										</SelectTrigger>
+										<SelectContent>
+											{customers.map((c: any) => (
+												<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
+						</div>
                         <div className="space-y-2">
                             <Label>Date</Label>
                             <Input type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
