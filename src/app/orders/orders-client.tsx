@@ -1427,9 +1427,11 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                     </Card>
                                 </div>
                             </div>
-                        </form>
+                        
                     </ScrollArea>
                     
+				</form>
+					
                     <DialogFooter className="p-4 border-t gap-2 bg-white">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancel
