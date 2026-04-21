@@ -1427,7 +1427,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                     </Card>
                                 </div>
                             </div>
-                        </form> {/* 👈 Sealed here with the correct ID above */}
+                        </form>
                     </ScrollArea>
                     
                     <DialogFooter className="p-4 border-t gap-2 bg-white">
