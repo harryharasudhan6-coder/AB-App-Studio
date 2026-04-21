@@ -1131,417 +1131,415 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                     </DialogHeader>
                     <form onSubmit={handleSubmit} id="order-form">
                         <ScrollArea className="h-[70vh]">
-  <div className="space-y-4 p-4">
-    {/* Order Details Card */}
-    <Card>
-      <CardContent className="p-4 space-y-4 rounded-lg">
-        <DialogTitle className="text-lg mb-4">Order Details</DialogTitle>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+							<div className="space-y-4 p-4">
+								{/* Order Details Card */}
+								<Card>
+								  <CardContent className="p-4 space-y-4 rounded-lg">
+									<DialogTitle className="text-lg mb-4">Order Details</DialogTitle>
+									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {/* Customer Selection */}
-          <div className="space-y-2 md:col-span-2">
-            <div className="flex items-center justify-between mb-1">
-              <Label className="font-semibold text-sm">Customer Selection *</Label>
-              <RadioGroup
-                value={isWalkIn ? "walk-in" : "existing"}
-                onValueChange={(val) => {
-                  setIsWalkIn(val === "walk-in");
-                  if (val === "existing") setCustomerId('');
-                }}
-                className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
-              >
-                <div className="flex items-center space-x-1">
-                  <RadioGroupItem value="existing" id="existing-cust" />
-                  <Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <RadioGroupItem value="walk-in" id="walk-in-cust" />
-                  <Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">New/Walk-In</Label>
-                </div>
-              </RadioGroup>
-            </div>
+									  {/* Customer Selection */}
+										<div className="space-y-2 md:col-span-2">
+										<div className="flex items-center justify-between mb-1">
+										  <Label className="font-semibold text-sm">Customer Selection *</Label>
+										  <RadioGroup
+											value={isWalkIn ? "walk-in" : "existing"}
+											onValueChange={(val) => {
+											  setIsWalkIn(val === "walk-in");
+											  if (val === "existing") setCustomerId('');
+											}}
+											className="flex gap-4 bg-muted/50 p-1 px-2 rounded-md border"
+										  >
+											<div className="flex items-center space-x-1">
+											  <RadioGroupItem value="existing" id="existing-cust" />
+											  <Label htmlFor="existing-cust" className="text-[10px] uppercase font-bold cursor-pointer">Regular</Label>
+											</div>
+											<div className="flex items-center space-x-1">
+											  <RadioGroupItem value="walk-in" id="walk-in-cust" />
+											  <Label htmlFor="walk-in-cust" className="text-[10px] uppercase font-bold cursor-pointer text-blue-600">New/Walk-In</Label>
+											</div>
+										  </RadioGroup>
+										</div>
 
-            {isWalkIn ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
-                <div className="space-y-1">
-                  <Label htmlFor="wiPhone" className="text-[10px] text-blue-700 font-bold uppercase">Mobile Number</Label>
-                  <Input
-                    id="wiPhone"
-                    placeholder="Type mobile..."
-                    value={walkInPhone}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setWalkInPhone(val);
-                      if (val.length >= 10) {
-                        const cleanVal = val.replace(/\D/g, '');
-                        const existing = customers.find(c => c.phone?.replace(/\D/g, '').includes(cleanVal));
-                        if (existing) {
-                          setWalkInName(existing.name);
-                          toast({ title: "Returning Customer", description: `Found: ${existing.name}` });
-                        }
-                      }
-                    }}
-                    className="bg-white border-blue-200 h-9"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="wiName" className="text-[10px] text-blue-700 font-bold uppercase">Customer Name *</Label>
-                  <Input
-                    id="wiName"
-                    placeholder="Enter Name"
-                    value={walkInName}
-                    onChange={(e) => setWalkInName(e.target.value)}
-                    className="bg-white border-blue-200 h-9"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Combobox
-                    options={customerOptions}
-                    value={customerId}
-                    onValueChange={setCustomerId}
-                    placeholder="Search existing customers..."
-                  />
-                </div>
-                <Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>Add New</Button>
-              </div>
-            )}
-          </div>
+										{isWalkIn ? (
+										  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
+											<div className="space-y-1">
+											  <Label htmlFor="wiPhone" className="text-[10px] text-blue-700 font-bold uppercase">Mobile Number</Label>
+											  <Input
+												id="wiPhone"
+												placeholder="Type mobile..."
+												value={walkInPhone}
+												onChange={(e) => {
+												  const val = e.target.value;
+												  setWalkInPhone(val);
+												  if (val.length >= 10) {
+													const cleanVal = val.replace(/\D/g, '');
+													const existing = customers.find(c => c.phone?.replace(/\D/g, '').includes(cleanVal));
+													if (existing) {
+													  setWalkInName(existing.name);
+													  toast({ title: "Returning Customer", description: `Found: ${existing.name}` });
+													}
+												  }
+												}}
+												className="bg-white border-blue-200 h-9"
+											  />
+											</div>
+											<div className="space-y-1">
+											  <Label htmlFor="wiName" className="text-[10px] text-blue-700 font-bold uppercase">Customer Name *</Label>
+											  <Input
+												id="wiName"
+												placeholder="Enter Name"
+												value={walkInName}
+												onChange={(e) => setWalkInName(e.target.value)}
+												className="bg-white border-blue-200 h-9"
+											  />
+											</div>
+										  </div>
+										) : (
+										  <div className="flex gap-2">
+											<div className="flex-1">
+											  <Combobox
+												options={customerOptions}
+												value={customerId}
+												onValueChange={setCustomerId}
+												placeholder="Search existing customers..."
+											  />
+											</div>
+											<Button type="button" variant="outline" onClick={() => setIsAddCustomerOpen(true)}>Add New</Button>
+										  </div>
+										)}
+									  </div>
 
-          {/* Order Date */}
-          <div className="space-y-2">
-            <Label htmlFor="orderDate">Order Date</Label>
-            <Input
-              id="orderDate"
-              type="date"
-              value={orderDate}
-              onChange={(e) => setOrderDate(e.target.value)}
-            />
-          </div>
-        </div>
+									  {/* Order Date */}
+									  <div className="space-y-2">
+										<Label htmlFor="orderDate">Order Date</Label>
+										<Input
+										  id="orderDate"
+										  type="date"
+										  value={orderDate}
+										  onChange={(e) => setOrderDate(e.target.value)}
+										/>
+									  </div>
+									</div>
 
-        {/* First Order & Previous Balance */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {isFirstOrder && !isEditMode && (
-            <div className="space-y-2">
-              <Label htmlFor="previous_balance">Opening Balance (Optional)</Label>
-              <Input
-                id="previous_balance"
-                type="number"
-                placeholder="0.00"
-                value={String(previousBalance)}
-                onChange={(e) => setPreviousBalance(parseFloat(e.target.value) || 0)}
-              />
-            </div>
-          )}
-          {previousBalance > 0 && !isFirstOrder && (
-            <div className="flex items-center justify-start">
-              <div className="text-right p-2 bg-amber-100 border border-amber-200 rounded-md">
-                <div className="text-sm font-medium text-amber-800">Previous Balance</div>
-                <div className="text-lg font-bold text-amber-900">{formatNumberForDisplay(previousBalance)}</div>
-              </div>
-            </div>
-          )}
-        </div>
+									{/* First Order & Previous Balance */}
+									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+									  {isFirstOrder && !isEditMode && (
+										<div className="space-y-2">
+										<Label htmlFor="previous_balance">Opening Balance (Optional)</Label>
+										  <Input
+											id="previous_balance"
+											type="number"
+											placeholder="0.00"
+											value={String(previousBalance)}
+											onChange={(e) => setPreviousBalance(parseFloat(e.target.value) || 0)}
+										  />
+										</div>
+									  )}
+									  {previousBalance > 0 && !isFirstOrder && (
+										<div className="flex items-center justify-start">
+										  <div className="text-right p-2 bg-amber-100 border border-amber-200 rounded-md">
+											<div className="text-sm font-medium text-amber-800">Previous Balance</div>
+											<div className="text-lg font-bold text-amber-900">{formatNumberForDisplay(previousBalance)}</div>
+										  </div>
+										</div>
+									  )}
+									</div>
 
-        {/* Payment & GST */}
-        <Separator className="my-4" />
+									{/* Payment & GST */}
+									<Separator className="my-4" />
 
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="is_gst_invoice"
-              checked={isGstInvoice}
-              onCheckedChange={(c) => setIsGstInvoice(c as boolean)}
-            />
-            <Label htmlFor="is_gst_invoice">Generate GST Invoice?</Label>
-          </div>
+									<div className="space-y-4">
+									  <div className="flex items-center space-x-2">
+										<Checkbox
+										  id="is_gst_invoice"
+										  checked={isGstInvoice}
+										  onCheckedChange={(c) => setIsGstInvoice(c as boolean)}
+										/>
+										<Label htmlFor="is_gst_invoice">Generate GST Invoice?</Label>
+									  </div>
 
-          {/* Payment Term */}
-          <div className="space-y-2 pt-4">
-            <Label className="font-bold">Payment Term</Label>
-            <RadioGroup
-              value={paymentTerm}
-              onValueChange={(v) => setPaymentTerm(v as PaymentTerm)}
-              className="flex gap-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Full Payment" id="full_payment" />
-                <Label htmlFor="full_payment">Full Payment</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Part Payment" id="part_payment" />
-                <Label htmlFor="part_payment" className="text-blue-600 font-semibold">Part Payment</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Credit" id="credit" />
-                <Label htmlFor="credit">Credit</Label>
-              </div>
-            </RadioGroup>
+									  {/* Payment Term */}
+									  <div className="space-y-2 pt-4">
+										<Label className="font-bold">Payment Term</Label>
+										<RadioGroup
+										  value={paymentTerm}
+										  onValueChange={(v) => setPaymentTerm(v as PaymentTerm)}
+										  className="flex gap-4"
+										>
+										  <div className="flex items-center space-x-2">
+											<RadioGroupItem value="Full Payment" id="full_payment" />
+											<Label htmlFor="full_payment">Full Payment</Label>
+										  </div>
+										  <div className="flex items-center space-x-2">
+											<RadioGroupItem value="Part Payment" id="part_payment" />
+											<Label htmlFor="part_payment" className="text-blue-600 font-semibold">Part Payment</Label>
+										  </div>
+										  <div className="flex items-center space-x-2">
+											<RadioGroupItem value="Credit" id="credit" />
+											<Label htmlFor="credit">Credit</Label>
+										  </div>
+										</RadioGroup>
 
-            {/* Part Payment Amount Box */}
-            {paymentTerm === 'Part Payment' && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in zoom-in-95 duration-200">
-                <Label htmlFor="part_amt" className="text-[10px] uppercase font-bold text-blue-700">Advance Amount Collected Now (₹)</Label>
-                <Input
-                  id="part_amt"
-                  type="number"
-                  placeholder="e.g. 5000"
-                  value={partPaymentAmount}
-                  onChange={(e) => setPartPaymentAmount(e.target.value)}
-                  className="bg-white border-blue-300 h-10 text-lg font-semibold"
-                />
-              </div>
-            )}
+										{/* Part Payment Amount Box */}
+										{paymentTerm === 'Part Payment' && (
+										  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in zoom-in-95 duration-200">
+											<Label htmlFor="part_amt" className="text-[10px] uppercase font-bold text-blue-700">Advance Amount Collected Now (₹)</Label>
+											<Input
+											  id="part_amt"
+											  type="number"
+											  placeholder="e.g. 5000"
+											  value={partPaymentAmount}
+											  onChange={(e) => setPartPaymentAmount(e.target.value)}
+											  className="bg-white border-blue-300 h-10 text-lg font-semibold"
+											/>
+										  </div>
+										)}
 
-            {/* Mode/Remarks for Payment */}
-            {(paymentTerm === 'Full Payment' || paymentTerm === 'Part Payment') && (
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="space-y-2">
-                  <Label>Payment Mode</Label>
-                  <Select
-                    value={paymentMode}
-                    onValueChange={(v) => setPaymentMode(v as PaymentMode)}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Cash">Cash</SelectItem>
-                      <SelectItem value="UPI">UPI</SelectItem>
-                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                      <SelectItem value="Cheque">Cheque</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Payment Remarks</Label>
-                  <Input
-                    value={paymentRemarks}
-                    onChange={(e) => setPaymentRemarks(e.target.value)}
-                    placeholder="Reference info..."
-                  />
-                </div>
-              </div>
-            )}
+										{/* Mode/Remarks for Payment */}
+										{(paymentTerm === 'Full Payment' || paymentTerm === 'Part Payment') && (
+										  <div className="grid grid-cols-2 gap-4 pt-2">
+											<div className="space-y-2">
+											  <Label>Payment Mode</Label>
+											  <Select
+												value={paymentMode}
+												onValueChange={(v) => setPaymentMode(v as PaymentMode)}
+											  >
+												<SelectTrigger><SelectValue /></SelectTrigger>
+												<SelectContent>
+												  <SelectItem value="Cash">Cash</SelectItem>
+												  <SelectItem value="UPI">UPI</SelectItem>
+												  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+												  <SelectItem value="Cheque">Cheque</SelectItem>
+												</SelectContent>
+											  </Select>
+											</div>
+											<div className="space-y-2">
+											  <Label>Payment Remarks</Label>
+											  <Input
+												value={paymentRemarks}
+												onChange={(e) => setPaymentRemarks(e.target.value)}
+												placeholder="Reference info..."
+											  />
+											</div>
+										  </div>
+										)}
 
-            {paymentTerm === 'Credit' && (
-              <div className="space-y-2 pt-2">
-                <Label>Due Date</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-              </div>
-            )}
-          </div>
-        </div>
+										{paymentTerm === 'Credit' && (
+										  <div className="space-y-2 pt-2">
+											<Label>Due Date</Label>
+											<Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+										  </div>
+										)}
+									  </div>
+									</div>
 
-        {/* Add Items Section */}
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            <DialogTitle className="text-lg mb-4">Add Items</DialogTitle>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-              <div className="space-y-2 col-span-3">
-                <Label>Item Name</Label>
-                <Combobox
-                  options={productOptions}
-                  value={currentItem.productId}
-                  onValueChange={handleProductSelect}
-                  placeholder="Select an item"
-                />
-              </div>
-              <div className="space-y-2 col-span-1">
-                <Label>Stock</Label>
-                <Input value={currentItem.stock} readOnly disabled />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>{isWeightBased(currentItem.category) ? 'Qty (Nos)' : 'Qty'}</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={currentItem.quantity}
-                  onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>Price</Label>
-                <Input
-                  type="number"
-                  value={currentItem.price}
-                  onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })}
-                />
-              </div>
-              <div className="flex justify-end mt-4 col-span-4">
-                <Button type="button" onClick={editingItemIndex !== null ? handleUpdateItem : handleAddItem}>
-                  {editingItemIndex !== null ? 'Update Item' : 'Add Item'}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+									{/* Add Items Section */}
+									<Card>
+									  <CardContent className="p-4 space-y-4">
+										<DialogTitle className="text-lg mb-4">Add Items</DialogTitle>
+										<div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+										  <div className="space-y-2 col-span-3">
+											<Label>Item Name</Label>
+											<Combobox
+											  options={productOptions}
+											  value={currentItem.productId}
+											  onValueChange={handleProductSelect}
+											  placeholder="Select an item"
+											/>
+										  </div>
+										  <div className="space-y-2 col-span-1">
+											<Label>Stock</Label>
+											<Input value={currentItem.stock} readOnly disabled />
+										  </div>
+										  <div className="space-y-2 col-span-2">
+											<Label>{isWeightBased(currentItem.category) ? 'Qty (Nos)' : 'Qty'}</Label>
+											<Input
+											  type="number"
+											  placeholder="0"
+											  value={currentItem.quantity}
+											  onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })}
+											/>
+										  </div>
+										  <div className="space-y-2 col-span-2">
+											<Label>Price</Label>
+											<Input
+											  type="number"
+											  value={currentItem.price}
+											  onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })}
+											/>
+										  </div>
+										  <div className="flex justify-end mt-4 col-span-4">
+											<Button type="button" onClick={editingItemIndex !== null ? handleUpdateItem : handleAddItem}>
+											  {editingItemIndex !== null ? 'Update Item' : 'Add Item'}
+											</Button>
+										  </div>
+										</div>
+									  </CardContent>
+									</Card>
 
-        {/* Order Items Table */}
-        <Card>
-          <CardContent className="p-4">
-            <DialogTitle className="text-lg mb-4">Order Items</DialogTitle>
-            <div className="w-full overflow-x-auto rounded-md border">
-              <Table className="min-w-[700px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{products.find(p => p.id === item.productId)?.name}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{formatNumberForDisplay(parseFloat(item.price))}</TableCell>
-                      <TableCell>{formatNumberForDisplay(parseFloat(item.price) * parseFloat(item.quantity))}</TableCell>
-                      <TableCell className="space-x-2">
-                        <Button type="button" size="sm" variant="outline" onClick={() => handleEditItemClick(index)}>Edit</Button>
-                        <Button type="button" size="sm" variant="destructive" onClick={() => handleRemoveItem(index)}>Delete</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+									{/* Order Items Table */}
+									<Card>
+									  <CardContent className="p-4">
+										<DialogTitle className="text-lg mb-4">Order Items</DialogTitle>
+										<div className="w-full overflow-x-auto rounded-md border">
+										  <Table className="min-w-[700px]">
+											<TableHeader>
+											  <TableRow>
+												<TableHead>Item</TableHead>
+												<TableHead>Quantity</TableHead>
+												<TableHead>Price</TableHead>
+												<TableHead>Total</TableHead>
+												<TableHead>Actions</TableHead>
+											  </TableRow>
+											</TableHeader>
+											<TableBody>
+											  {items.map((item, index) => (
+												<TableRow key={index}>
+												  <TableCell>{products.find(p => p.id === item.productId)?.name}</TableCell>
+												  <TableCell>{item.quantity}</TableCell>
+												  <TableCell>{formatNumberForDisplay(parseFloat(item.price))}</TableCell>
+												  <TableCell>{formatNumberForDisplay(parseFloat(item.price) * parseFloat(item.quantity))}</TableCell>
+												  <TableCell className="space-x-2">
+													<Button type="button" size="sm" variant="outline" onClick={() => handleEditItemClick(index)}>Edit</Button>
+													<Button type="button" size="sm" variant="destructive" onClick={() => handleRemoveItem(index)}>Delete</Button>
+												  </TableCell>
+												</TableRow>
+											  ))}
+											</TableBody>
+										  </Table>
+										</div>
+									  </CardContent>
+									</Card>
 
-        {/* Delivery Details and Order Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									{/* Delivery Details and Order Summary */}
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          {/* Delivery Details */}
-          <Card>
-            <CardContent className="p-4 space-y-4">
-              <DialogTitle className="text-lg">Delivery Details</DialogTitle>
-              <div className="space-y-2">
-                <Label>Delivery Date</Label>
-                <Input
-                  type="date"
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deliveryAddress">Delivery Address *</Label>
-                <Textarea
-                  id="deliveryAddress"
-                  value={deliveryAddress}
-                  onChange={(e) => {
-                    console.log('🔍 DEBUG: Delivery address changing from', deliveryAddress, 'to', e.target.value);
-                    setDeliveryAddress(e.target.value);
-                  }}
-                  placeholder="Enter delivery address (required)"
-                  required
-                  className={!deliveryAddress ? "border-red-500" : ""}
-                />
-                {!deliveryAddress && (
-                  <p className="text-sm text-red-500">Delivery address is required</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+									  {/* Delivery Details */}
+									  <Card>
+										<CardContent className="p-4 space-y-4">
+										  <DialogTitle className="text-lg">Delivery Details</DialogTitle>
+										  <div className="space-y-2">
+											<Label>Delivery Date</Label>
+											<Input
+											  type="date"
+											  value={deliveryDate}
+											  onChange={(e) => setDeliveryDate(e.target.value)}
+											/>
+										  </div>
+										  <div className="space-y-2">
+											<Label htmlFor="deliveryAddress">Delivery Address *</Label>
+											<Textarea
+											  id="deliveryAddress"
+											  value={deliveryAddress}
+											  onChange={(e) => {
+												console.log('🔍 DEBUG: Delivery address changing from', deliveryAddress, 'to', e.target.value);
+												setDeliveryAddress(e.target.value);
+											  }}
+											  placeholder="Enter delivery address (required)"
+											  required
+											  className={!deliveryAddress ? "border-red-500" : ""}
+											/>
+											{!deliveryAddress && (
+											  <p className="text-sm text-red-500">Delivery address is required</p>
+											)}
+										  </div>
+										</CardContent>
+									  </Card>
 
-          {/* Order Summary Card */}
-          <Card>
-            <CardContent className="p-4 space-y-2">
-              <DialogTitle className="text-lg mb-4">Order Summary</DialogTitle>
-              <div className="flex justify-between text-sm">
-                <span>Current Items Total:</span>
-                <span className="font-semibold">{formatNumberForDisplay(currentInvoiceTotal)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <Label htmlFor="delivery_fees" className="flex-1">Delivery Fees</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  className="w-24 h-8"
-                  value={String(deliveryFees)}
-                  onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="enable_discount"
-                    checked={enableDiscount}
-                    onCheckedChange={(c) => setEnableDiscount(c as boolean)}
-                  />
-                  <Label htmlFor="enable_discount" className="flex-1">Discount</Label>
-                </div>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  className="w-24 h-8"
-                  value={String(discount)}
-                  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                  disabled={!enableDiscount}
-                />
-              </div>
-              <Separator />
-              <div className="flex justify-between text-sm">
-                <span className="font-medium">Subtotal:</span>
-                <span className="font-bold">{formatNumberForDisplay(subTotal)}</span>
-              </div>
-              {previousBalance > 0 && (
-                <div className="flex justify-between text-destructive text-sm">
-                  <span>Previous Balance:</span>
-                  <span className="font-semibold">{formatNumberForDisplay(previousBalance)}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex justify-between text-lg">
-                <span className="font-bold">Grand Total:</span>
-                <span className="font-bold text-primary">{formatNumberForDisplay(grandTotal)}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </Card>
-  </div>
-</ScrollArea>
+									  {/* Order Summary Card */}
+									  <Card>
+										<CardContent className="p-4 space-y-2">
+										  <DialogTitle className="text-lg mb-4">Order Summary</DialogTitle>
+										  <div className="flex justify-between text-sm">
+											<span>Current Items Total:</span>
+											<span className="font-semibold">{formatNumberForDisplay(currentInvoiceTotal)}</span>
+										  </div>
+										  <div className="flex justify-between items-center text-sm">
+											<Label htmlFor="delivery_fees" className="flex-1">Delivery Fees</Label>
+											<Input
+											  type="number"
+											  placeholder="0.00"
+											  className="w-24 h-8"
+											  value={String(deliveryFees)}
+											  onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)}
+											/>
+										  </div>
+										  <div className="flex justify-between items-center text-sm">
+											<div className="flex items-center space-x-2">
+											  <Checkbox
+												id="enable_discount"
+												checked={enableDiscount}
+												onCheckedChange={(c) => setEnableDiscount(c as boolean)}
+											  />
+											  <Label htmlFor="enable_discount" className="flex-1">Discount</Label>
+											</div>
+											<Input
+											  type="number"
+											  placeholder="0.00"
+											  className="w-24 h-8"
+											  value={String(discount)}
+											  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+											  disabled={!enableDiscount}
+											/>
+										  </div>
+										  <Separator />
+										  <div className="flex justify-between text-sm">
+											<span className="font-medium">Subtotal:</span>
+											<span className="font-bold">{formatNumberForDisplay(subTotal)}</span>
+										  </div>
+										  {previousBalance > 0 && (
+											<div className="flex justify-between text-destructive text-sm">
+											  <span>Previous Balance:</span>
+											  <span className="font-semibold">{formatNumberForDisplay(previousBalance)}</span>
+											</div>
+										  )}
+										  <Separator />
+										  <div className="flex justify-between text-lg">
+											<span className="font-bold">Grand Total:</span>
+											<span className="font-bold text-primary">{formatNumberForDisplay(grandTotal)}</span>
+										  </div>
+										</CardContent>
+									  </Card>
+									</div>
+								  </div>
+								</ScrollArea>
                     
-				</form>
+							</form>
 					
-                    <DialogFooter className="p-4 border-t gap-2 bg-white">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" form="order-form">
-                            {isEditMode ? 'Update Order' : 'Submit Order'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+							<DialogFooter className="p-4 border-t gap-2 bg-white">
+							<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+								Cancel
+							</Button>
+							<Button type="submit" form="order-form">
+								{isEditMode ? 'Update Order' : 'Submit Order'}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 
-            <Dialog open={isAddCustomerOpen} onOpenChange={setIsAddCustomerOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add New Customer</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleAddCustomerSubmit}>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="name" className="text-right">Name</Label>
-                                <Input id="name" name="name" className="col-span-3" required />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="phone" className="text-right">Phone</Label>
-                                <Input id="phone" name="phone" className="col-span-3" />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit">Save Customer</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        </>
-    );
-}
+				<Dialog open={isAddCustomerOpen} onOpenChange={setIsAddCustomerOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Add New Customer</DialogTitle>
+						</DialogHeader>
+						<form onSubmit={handleAddCustomerSubmit}>
+							<div className="grid gap-4 py-4">
+								<div className="grid grid-cols-4 items-center gap-4">
+									<Label htmlFor="name" className="text-right">Name</Label>
+									<Input id="name" name="name" className="col-span-3" required />
+								</div>
+								<div className="grid grid-cols-4 items-center gap-4">
+									<Label htmlFor="phone" className="text-right">Phone</Label>
+									<Input id="phone" name="phone" className="col-span-3" />
+								</div>
+							</div>
+							<DialogFooter>
+								<Button type="submit">Save Customer</Button>
+							</DialogFooter>
+						</form>
+					</DialogContent>
+				</Dialog>
+			</>
+		);
+	}
