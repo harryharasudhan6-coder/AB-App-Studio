@@ -1099,6 +1099,22 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             balanceDue: balanceRemaining,
             payments: initialPayments 
         };
+		
+		try {
+            if (isEditMode && existingOrder) {
+                await onOrderUpdated({ ...existingOrder, ...orderData });
+                toast({ title: "Success", description: "Order updated successfully" });
+            } else {
+                await onOrderAdded(orderData);
+                toast({ title: "Success", description: "Order placed successfully" });
+            }
+            onOpenChange(false);
+            resetForm();
+        } catch (error) {
+            console.error("Save Error:", error);
+            toast({ title: "Error", description: "Failed to save order", variant: "destructive" });
+        }
+    };
 
     const customerOptions = useMemo(() => customers.map(c => ({ value: c.id, label: c.name })), [customers]);
     const productOptions = useMemo(() => {
@@ -1415,7 +1431,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                     </ScrollArea>
                     <DialogFooter className="p-4 border-t">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-						Cancel
+							Cancel
 						</Button>
                         <Button type="submit">
                             {isEditMode ? 'Update Order' : 'Submit Order'}
@@ -1444,6 +1460,5 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                     </form>
                 </DialogContent>
             </Dialog>
-        </>
     );
 }
