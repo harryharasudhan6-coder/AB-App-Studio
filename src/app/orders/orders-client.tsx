@@ -1129,7 +1129,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                     <DialogHeader>
                         <DialogTitle>{isEditMode ? `Edit Order ${existingOrder?.id}`: 'Place New Order'}</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} id="order-form">
                         <ScrollArea className="h-[70vh]">
                             <div className="space-y-4 p-4">
                                 <Card>
@@ -1427,10 +1427,13 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                     </Card>
                                 </div>
                             </div>
-                        </form>
+                        </form> {/* 👈 Sealed here with the correct ID above */}
                     </ScrollArea>
-                    <DialogFooter className="p-4 border-t gap-2">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    
+                    <DialogFooter className="p-4 border-t gap-2 bg-white">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            Cancel
+                        </Button>
                         <Button type="submit" form="order-form">
                             {isEditMode ? 'Update Order' : 'Submit Order'}
                         </Button>
