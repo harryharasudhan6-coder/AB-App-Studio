@@ -91,6 +91,30 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, onOrderAdde
 	const [isWalkIn, setIsWalkIn] = useState(false);
 	const [walkInName, setWalkInName] = useState('');
 	const [walkInPhone, setWalkInPhone] = useState('');
+	const [items, setItems] = useState<any[]>([]);
+	
+	const addItem = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    setItems(prev => {
+        const existing = prev.find(item => item.productId === productId);
+        if (existing) {
+            return prev.map(item =>
+                item.productId === productId 
+                    ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } 
+                    : item
+            );
+        }
+        return [...prev, {
+            productId: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: 1,
+            total: product.price
+        }];
+    });
+};
 
     const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -99,8 +123,8 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, onOrderAdde
 				customerId: isWalkIn ? 'walk-in' : customerId,
 				customerName: isWalkIn ? `${walkInName} (Walk-In)` : (customers.find((c: any) => c.id === customerId)?.name || ''),
 				orderDate,
-				items: [],
-				grandTotal: 0,
+				items: items, 
+				grandTotal: items.reduce((sum, i) => sum + i.total, 0),
 				status: 'Pending'
 			};
 			await onOrderAdded(payload);
@@ -163,15 +187,53 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, onOrderAdde
 								</div>
 							)}
 						</div>
+						<div className="space-y-2">
+                            <Label>Add Products</Label>
+                            <Select onValueChange={(val) => addItem(val)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a product to add" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {products.map((p: any) => (
+                                        <SelectItem key={p.id} value={p.id}>
+                                            {p.name} - ₹{p.price}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+						{items.length > 0 && (
+                            <div className="border rounded-md p-3 bg-slate-50 space-y-2">
+                                <Label className="text-xs uppercase font-bold text-muted-foreground">Current Cart</Label>
+                                <div className="space-y-1">
+                                    {items.map((item) => (
+                                        <div key={item.productId} className="flex justify-between text-sm italic">
+                                            <span>{item.name} (x{item.quantity})</span>
+                                            <span>₹{item.total.toLocaleString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="border-t pt-2 flex justify-between font-bold text-blue-600">
+                                    <span>Total Amount</span>
+                                    <span>₹{items.reduce((sum, i) => sum + i.total, 0).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label>Date</Label>
                             <Input type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                        <Button type="submit">Save Foundation Order</Button>
-                    </DialogFooter>
+						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+							Cancel
+						</Button>
+						<Button 
+							type="submit" 
+							onClick={handleSubmit} 
+							disabled={items.length === 0}
+						</Button>
+					</DialogFooter>	
                 </form>
             </DialogContent>
         </Dialog>
