@@ -225,15 +225,21 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, onOrderAdde
                         </div>
                     </div>
                     <DialogFooter>
-						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+						<Button 
+							type="button" 
+							variant="outline" 
+							onClick={() => onOpenChange(false)}
+						>
 							Cancel
 						</Button>
 						<Button 
 							type="submit" 
 							onClick={handleSubmit} 
 							disabled={items.length === 0}
+						>
+							Create Order
 						</Button>
-					</DialogFooter>	
+					</DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
