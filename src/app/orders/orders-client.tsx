@@ -328,7 +328,7 @@ export function OrdersClient({
 
             finalY += 4; 
             const grandTotalText = `Grand Total: ${formatNumber(orderToPrint.grandTotal)}`;
-            const isCredit = orderToPrint.paymentTerm === 'Credit';
+            
             
             // Visual Badge for Credit vs Paid
             doc.setFillColor(isCredit ? 255 : 222, isCredit ? 235 : 247, isCredit ? 238 : 236);
@@ -1005,8 +1005,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
         setCurrentItem(initialItemState);
     };
 
-    const { currentInvoiceTotal, subTotal, grandTotal } = useMemo(() => {
-        const itemsTotal = items.reduce((sum, item) => {
+            const itemsTotal = items.reduce((sum, item) => {
             const price = parseFloat(item.price) || 0;
             const qty = parseFloat(item.quantity) || 0;
             const weight = isWeightBased(item.category) ? (parseFloat(item.totalWeight) || (qty * item.weightPerUnit)) : qty;
