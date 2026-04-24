@@ -1019,7 +1019,11 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
         }, 0) : 0;
         const total = itemsTotal + gstTotal;
         const sub = total + deliveryFees - discount;
-        return { currentInvoiceTotal: total, subTotal: sub, grandTotal: sub + previousBalance };
+        return { 
+            currentInvoiceTotal: total, 
+            subTotal: sub, 
+            grandTotal: sub + previousBalance 
+        };
     }, [items, isGstInvoice, deliveryFees, discount, previousBalance]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -1096,7 +1100,6 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             </DialogContent>
         </Dialog>
     );
-}
 }// <--- Closes AddOrderDialog
 
 // --- END OF FILE ---	
