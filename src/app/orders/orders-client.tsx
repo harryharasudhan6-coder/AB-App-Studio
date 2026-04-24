@@ -1091,7 +1091,7 @@ function AddOrderDialog({
             </div>
 
             {/* --- FORM SUBMISSION FOOTER --- */}
-            <DialogFooter className="sticky bottom-0 p-4 border-t bg-white/80 backdrop-blur-md mt-6 flex-col sm:flex-row gap-3">
+            <DialogFooter className="sticky bottom-0 p-4 border-t bg-white mt-6 flex flex-col sm:flex-row gap-3">
                 <Button 
                     type="button" 
                     variant="ghost" 
@@ -1102,12 +1102,58 @@ function AddOrderDialog({
                 </Button>
                 <Button 
                     type="submit" 
+                    form="order-form"
                     disabled={items.length === 0 || !deliveryAddress}
                     className="w-full sm:min-w-[200px] shadow-lg shadow-primary/20"
                 >
                     {isEditMode ? 'Update & Save Changes' : 'Confirm & Place Order'}
                 </Button>
             </DialogFooter>
-        </form>
-    </ScrollArea>
-</DialogContent>
+          </form>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+} // <--- This closes AddOrderDialog
+
+// --- FINAL CUSTOMER DIALOG & COMPONENT CLOSURE ---
+return (
+    <>
+        <div className="container mx-auto space-y-6 p-2 sm:p-6">
+            {/* Header, Table, etc (Your Part 1/2 UI) */}
+        </div>
+
+        <AddOrderDialog
+            isOpen={isAddOrderOpen || !!orderToEdit}
+            onOpenChange={(open) => {
+                if (!open) {
+                    setIsAddOrderOpen(false);
+                    setOrderToEdit(null);
+                }
+            }}
+            customers={customers}
+            products={products}
+            orders={orders}
+            onOrderAdded={handleAddOrder}
+            onOrderUpdated={handleUpdateOrder}
+            onCustomerAdded={handleAddCustomerSubmit}
+            existingOrder={orderToEdit}
+        />
+
+        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action will permanently delete order {orderToDelete?.id}. Item quantities will be restored to stock.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </>
+  );
+} // <--- This finally closes the OrdersClient component
