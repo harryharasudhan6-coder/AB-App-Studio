@@ -1094,9 +1094,11 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                     <Button variant="ghost" type="button" onClick={()=>onOpenChange(false)}>Cancel</Button>
                     <Button form="order-form" type="submit" disabled={items.length===0}>Confirm Order</Button>
                 </DialogFooter>
+            </DialogFooter>
             </DialogContent>
         </Dialog>
     );
+} 
 } // <--- Closes AddOrderDialog
 
 // --- END OF FILE ---
