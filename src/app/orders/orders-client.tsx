@@ -1097,6 +1097,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             </DialogContent>
         </Dialog>
     );
+}
 }// <--- Closes AddOrderDialog
 
 // --- END OF FILE ---	
