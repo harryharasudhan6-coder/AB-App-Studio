@@ -1210,7 +1210,24 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 										)}
 									  </div>
 
-									  {/* Order Date */}
+									  
+									{/* Delivery Details and Order Summary */}
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+									  {/* Delivery Details */}
+									  <Card>
+										<CardContent className="p-4 space-y-4">
+										  <DialogTitle className="text-lg">Delivery Details</DialogTitle>
+										  <div className="space-y-2">
+											<Label>Delivery Date</Label>
+											<Input
+											  type="date"
+											  value={deliveryDate}
+											  onChange={(e) => setDeliveryDate(e.target.value)}
+											/>
+										  </div>
+										  <div className="space-y-2">
+										{/* Order Date */}
 									  <div className="space-y-2">
 										<Label htmlFor="orderDate">Order Date</Label>
 										<Input
@@ -1411,24 +1428,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 										</div>
 									  </CardContent>
 									</Card>
-
-									{/* Delivery Details and Order Summary */}
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-									  {/* Delivery Details */}
-									  <Card>
-										<CardContent className="p-4 space-y-4">
-										  <DialogTitle className="text-lg">Delivery Details</DialogTitle>
-										  <div className="space-y-2">
-											<Label>Delivery Date</Label>
-											<Input
-											  type="date"
-											  value={deliveryDate}
-											  onChange={(e) => setDeliveryDate(e.target.value)}
-											/>
-										  </div>
-										  <div className="space-y-2">
-											<Label htmlFor="deliveryAddress">Delivery Address *</Label>
+	<Label htmlFor="deliveryAddress">Delivery Address *</Label>
 											<Textarea
 											  id="deliveryAddress"
 											  value={deliveryAddress}
@@ -1543,3 +1543,137 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 			</>
 		);
 }
+
+				{/* --- DELIVERY & SUMMARY SECTION --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                
+                {/* 1. Delivery Details Card */}
+                <Card className="shadow-sm border-slate-200">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-500">Logistics Info</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="deliveryDate">Expected Delivery Date</Label>
+                            <Input
+                                id="deliveryDate"
+                                type="date"
+                                value={deliveryDate}
+                                onChange={(e) => setDeliveryDate(e.target.value)}
+                                className="focus:ring-primary"
+                            />
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="deliveryAddress" className="flex justify-between">
+                                Delivery Address 
+                                <span className="text-[10px] text-red-500 font-bold uppercase">* Required</span>
+                            </Label>
+                            <Textarea
+                                id="deliveryAddress"
+                                value={deliveryAddress}
+                                onChange={(e) => setDeliveryAddress(e.target.value)}
+                                placeholder="Enter full site address..."
+                                className={cn(
+                                    "min-h-[100px] resize-none",
+                                    !deliveryAddress && "border-red-200 focus-visible:ring-red-500"
+                                )}
+                                required
+                            />
+                            {!deliveryAddress && (
+                                <p className="text-[10px] text-red-500 italic">Order cannot be submitted without a delivery address.</p>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 2. Final Order Summary Card */}
+                <Card className="bg-slate-50/50 border-primary/20 shadow-inner">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-500">Billing Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                            <span className="text-slate-600">Current Items Total (Incl. GST):</span>
+                            <span className="font-semibold text-slate-900">{formatNumberForDisplay(currentInvoiceTotal)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-sm">
+                            <Label htmlFor="delivery_fees" className="text-slate-600">Delivery / Transport Fees</Label>
+                            <div className="relative">
+                                <span className="absolute left-2 top-1.5 text-slate-400 text-xs">₹</span>
+                                <Input
+                                    id="delivery_fees"
+                                    type="number"
+                                    className="w-28 h-8 pl-5 text-right font-medium"
+                                    value={String(deliveryFees)}
+                                    onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between items-center text-sm">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="enable_discount"
+                                    checked={enableDiscount}
+                                    onCheckedChange={(c) => setEnableDiscount(c as boolean)}
+                                />
+                                <Label htmlFor="enable_discount" className="text-slate-600">Special Discount</Label>
+                            </div>
+                            <div className="relative">
+                                <span className="absolute left-2 top-1.5 text-slate-400 text-xs">-₹</span>
+                                <Input
+                                    id="discount"
+                                    type="number"
+                                    className="w-28 h-8 pl-6 text-right font-medium text-green-600"
+                                    value={String(discount)}
+                                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                    disabled={!enableDiscount}
+                                />
+                            </div>
+                        </div>
+
+                        <Separator className="bg-slate-200" />
+
+                        <div className="flex justify-between text-sm py-1">
+                            <span className="font-medium text-slate-700">Order Subtotal:</span>
+                            <span className="font-bold text-slate-900">{formatNumberForDisplay(subTotal)}</span>
+                        </div>
+
+                        {previousBalance > 0 && (
+                            <div className="flex justify-between text-amber-700 text-sm italic">
+                                <span>Add: Previous Outstanding Balance:</span>
+                                <span className="font-bold">{formatNumberForDisplay(previousBalance)}</span>
+                            </div>
+                        )}
+
+                        <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-xl flex justify-between items-center">
+                            <span className="text-lg font-black text-slate-800 uppercase tracking-tight">Grand Total</span>
+                            <span className="text-2xl font-black text-primary">{formatNumberForDisplay(grandTotal)}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* --- FORM SUBMISSION FOOTER --- */}
+            <DialogFooter className="sticky bottom-0 p-4 border-t bg-white/80 backdrop-blur-md mt-6 flex-col sm:flex-row gap-3">
+                <Button 
+                    type="button" 
+                    variant="ghost" 
+                    onClick={() => onOpenChange(false)}
+                    className="w-full sm:w-auto"
+                >
+                    Cancel
+                </Button>
+                <Button 
+                    type="submit" 
+                    disabled={items.length === 0 || !deliveryAddress}
+                    className="w-full sm:min-w-[200px] shadow-lg shadow-primary/20"
+                >
+                    {isEditMode ? 'Update & Save Changes' : 'Confirm & Place Order'}
+                </Button>
+            </DialogFooter>
+        </form>
+    </ScrollArea>
+</DialogContent>
