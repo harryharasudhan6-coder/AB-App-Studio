@@ -28,7 +28,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { UserOptions } from 'jspdf-autotable';
 
-// --- TYPES ---
+// --- TYPES & INTERFACES ---
 interface jsPDFWithPlugin extends jsPDF {
     autoTable: (options: UserOptions) => jsPDF;
     previousAutoTable: { finalY: number };
@@ -37,22 +37,14 @@ interface jsPDFWithPlugin extends jsPDF {
 type SortKey = keyof Order | 'id' | 'customerName' | 'orderDate' | 'status' | 'grandTotal';
 
 type OrderItemState = { 
-    productId: string; 
-    quantity: string; 
-    price: string; 
-    cost: string; 
-    gst: string; 
-    stock: number; 
-    calculationType: CalculationType; 
-    category: ProductCategory; 
-    weightPerUnit: number; 
-    totalWeight: string; 
+    productId: string; quantity: string; price: string; cost: string; gst: string; 
+    stock: number; calculationType: CalculationType; category: ProductCategory; 
+    weightPerUnit: number; totalWeight: string; 
 };
 
 // --- CONSTANTS ---
-const WEIGHT_BASED_CATEGORIES: string[] = ['Rods & Rings', 'Savukku Stick', 'Steel', 'Rings', 'Rods'];
+const WEIGHT_BASED_CATEGORIES: string[] = ['Rings', 'Rods', 'Steel', 'Rods & Rings', 'Savukku Stick'];
 const isWeightBased = (category: string) => WEIGHT_BASED_CATEGORIES.includes(category);
-
 const initialItemState: OrderItemState = { 
     productId: '', quantity: '', price: '', cost: '', gst: '', stock: 0, 
     calculationType: 'Per Unit', category: 'General', weightPerUnit: 0, totalWeight: '' 
@@ -60,8 +52,8 @@ const initialItemState: OrderItemState = {
 
 // --- UTILS ---
 const formatNumberForDisplay = (value: number | undefined) => {
-    if (value === undefined || isNaN(value)) return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(0);
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', currencyDisplay: 'symbol' }).format(value);
+    const amount = value ?? 0;
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(amount);
 };
 
 export function OrdersClient({ orders: initialOrders, customers: initialCustomers, products: initialProducts }: { orders: Order[], customers: Customer[], products: Product[] }) {
@@ -92,11 +84,9 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
             const freshProducts = await getProducts();
             setProducts(freshProducts);
             setIsAddOrderOpen(true);
-        } catch (e) {
-            toast({ title: 'Error', description: 'Could not fetch products.', variant: 'destructive' });
-        } finally {
-            setIsLoading(false);
-        }
+        } catch(e) {
+            toast({ title: 'Error', description: 'Could not fetch products.', variant: 'destructive'});
+        } finally { setIsLoading(false); }
     };
 
     const openEditDialog = async (order: Order) => {
@@ -105,26 +95,18 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
             const freshProducts = await getProducts();
             setProducts(freshProducts);
             setOrderToEdit(order);
-        } catch (e) {
-            toast({ title: 'Error', description: 'Could not fetch products.', variant: 'destructive' });
-        } finally {
-            setIsLoading(false);
-        }
+        } catch(e) {
+            toast({ title: 'Error', description: 'Could not fetch products.', variant: 'destructive'});
+        } finally { setIsLoading(false); }
     };
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...orders];
-        if (sortConfig !== null) {
+        if (sortConfig) {
             sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
-                if (aValue == null) return 1;
-                if (bValue == null) return -1;
-                if (sortConfig.key === 'orderDate') {
-                    return sortConfig.direction === 'ascending' 
-                        ? new Date(aValue as string).getTime() - new Date(bValue as string).getTime()
-                        : new Date(bValue as string).getTime() - new Date(aValue as string).getTime();
-                }
+                const aValue = a[sortConfig.key] ?? '';
+                const bValue = b[sortConfig.key] ?? '';
+                if (sortConfig.key === 'orderDate') return sortConfig.direction === 'ascending' ? new Date(aValue as string).getTime() - new Date(bValue as string).getTime() : new Date(bValue as string).getTime() - new Date(aValue as string).getTime();
                 return sortConfig.direction === 'ascending' ? (aValue < bValue ? -1 : 1) : (aValue > bValue ? -1 : 1);
             });
         }
@@ -132,49 +114,89 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
     }, [orders, sortConfig]);
 
     const filteredOrders = useMemo(() => {
-        const now = new Date();
-        let filtered = sortedOrders.filter(order =>
-            order.status !== 'Deleted' && (
-                order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                order.customerName.toLowerCase().includes(searchQuery.toLowerCase())
-            )
-        );
-        // ... Date filtering logic (kept from old code)
-        return filtered;
-    }, [sortedOrders, searchQuery, dateFilter]);
-
-    const handleGenerateInvoice = (order: Order) => setOrderToPrint(order);
-
-    useEffect(() => { if (orderToPrint) handlePrint(); }, [orderToPrint]);
+        return sortedOrders.filter(o => o.status !== 'Deleted' && (o.id.toLowerCase().includes(searchQuery.toLowerCase()) || o.customerName.toLowerCase().includes(searchQuery.toLowerCase())));
+    }, [sortedOrders, searchQuery]);
 
     const handlePrint = async () => {
         if (!orderToPrint) return;
         const customer = customers.find(c => c.id === orderToPrint.customerId);
-        if (!customer) return;
+        if(!customer) return;
         setIsLoading(true);
         try {
             const doc = new jsPDF() as jsPDFWithPlugin;
+            const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
-            doc.setFontSize(14).text("INVOICE", 105, 20, { align: 'center' });
-            // ... (Rest of PDF logic from working old code)
+
+            if (logoUrl) { try { doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 12.5, 15, 25, 20); } catch (e) { console.error("Logo Error"); } }
+            
+            doc.setFontSize(9).setFont('helvetica', 'normal');
+            doc.text('No.1, Ayyanchery main road, Urapakkam, Chennai - 603210', pageWidth / 2, 40, { align: 'center' });
+            doc.text('Email: abagency1977@gmail.com | MOB: 95511 95505 / 95001 82975', pageWidth / 2, 44, { align: 'center' });
+            doc.line(margin, 48, pageWidth - margin, 48);
+
+            let yPos = 58;
+            doc.setFontSize(10).setFont('helvetica', 'bold').text('Billed To:', margin, yPos);
+            doc.setFont('helvetica', 'normal');
+            yPos += 5;
+            doc.text(customer.name, margin, yPos);
+            yPos += 5;
+            const addressLines = doc.splitTextToSize(customer.address || 'N/A', 80);
+            doc.text(addressLines, margin, yPos);
+            yPos += (addressLines.length * 5);
+            doc.text(`Phone: ${customer.phone || 'N/A'}`, margin, yPos);
+
+            let rightYPos = 58;
+            doc.setFont('helvetica', 'bold').text('GSTIN: 33DMLPA8598D1ZU', pageWidth - margin, rightYPos, { align: 'right' });
+            rightYPos += 8;
+            const isCredit = orderToPrint.paymentTerm === 'Credit';
+            doc.setFontSize(11).setTextColor(isCredit ? 255 : 0, isCredit ? 0 : 128, 0).text(isCredit ? 'CREDIT INVOICE' : 'INVOICE', pageWidth - margin, rightYPos, { align: 'right' });
+            doc.setTextColor(0).setFontSize(10).setFont('helvetica', 'normal');
+            rightYPos += 10;
+            doc.text(`Invoice No: ${orderToPrint.id.replace('ORD', 'INV')}`, pageWidth - margin, rightYPos, { align: 'right' });
+            rightYPos += 5;
+            doc.text(`Date: ${new Date(orderToPrint.orderDate).toLocaleDateString('en-IN')}`, pageWidth - margin, rightYPos, { align: 'right' });
+
+            const tableBody = orderToPrint.items.map(item => [
+                item.productName,
+                `${item.quantity} ${isWeightBased(item.category) ? 'nos' : 'pcs'}`,
+                isWeightBased(item.category) ? `${(item.totalWeight ?? 0).toFixed(2)} kg` : 'N/A',
+                formatNumberForDisplay(item.price),
+                orderToPrint.isGstInvoice ? `${item.gst}%` : 'N/A',
+                formatNumberForDisplay(item.price * (item.totalWeight || item.quantity) * (1 + (orderToPrint.isGstInvoice ? (item.gst || 0) / 100 : 0)))
+            ]);
+
+            (doc as any).autoTable({
+                startY: Math.max(yPos, rightYPos) + 10,
+                head: [['Item Description', 'Qty', 'Weight', 'Rate', 'GST', 'Total']],
+                body: tableBody,
+                theme: 'grid',
+                headStyles: { fillColor: [204, 229, 255], textColor: [0, 0, 0], fontStyle: 'bold' }
+            });
+
+            let finalY = (doc as any).previousAutoTable.finalY + 10;
+            const addTotalRow = (label: string, value: number, isBold = false) => {
+                if (isBold) doc.setFont('helvetica', 'bold');
+                doc.text(label, pageWidth - margin - 50, finalY, { align: 'right' });
+                doc.text(formatNumberForDisplay(value), pageWidth - margin, finalY, { align: 'right' });
+                if (isBold) doc.setFont('helvetica', 'normal');
+                finalY += 6;
+            };
+
+            addTotalRow("Subtotal:", (orderToPrint.total ?? 0) + (orderToPrint.deliveryFees ?? 0) - (orderToPrint.discount ?? 0), true);
+            if(orderToPrint.previousBalance > 0) addTotalRow("Previous Balance:", orderToPrint.previousBalance);
+            finalY += 4;
+            doc.setFontSize(12).setFont('helvetica', 'bold').text(`Grand Total: ${formatNumberForDisplay(orderToPrint.grandTotal)}`, pageWidth / 2, finalY, { align: 'center' });
             doc.save(`INV-${orderToPrint.id}.pdf`);
-        } catch (e) { toast({ title: "PDF Error", variant: "destructive" }); }
+        } catch (e) { toast({ title: "Error", description: "PDF Generation Failed" }); }
         finally { setIsLoading(false); setOrderToPrint(null); }
     };
 
     const handleWhatsAppShare = (order: Order) => {
         const customer = customers.find(c => c.id === order.customerId);
-        if (!customer?.phone) return toast({ title: "No Phone Found" });
-        const message = `Invoice for ${order.id}. Total: ${formatNumberForDisplay(order.grandTotal)}`;
-        window.open(`https://wa.me/91${customer.phone}?text=${encodeURIComponent(message)}`, '_blank');
-    };
-
-    const handleAddCustomerSubmit = async (data: any) => {
-        try {
-            const newCust = await addCustomer(data);
-            setCustomers(prev => [...prev, newCust]);
-            return newCust;
-        } catch (e) { return null; }
+        if (!customer?.phone) return toast({ title: 'Error', description: 'No phone number.' });
+        const cleanName = customer.name.replace(' (Walk-In)', '');
+        const message = `Hello *${cleanName}*,%0A%0AHere is your invoice *${order.id.replace('ORD', 'INV')}* from *AB Agency*.%0A%0A*Grand Total:* ${formatNumberForDisplay(order.grandTotal)}%0A%0AThank you for your business!`;
+        window.open(`https://wa.me/91${customer.phone.replace(/\D/g, '')}?text=${message}`, '_blank');
     };
 
     const handleAddOrder = async (data: any) => {
@@ -190,35 +212,15 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
         setOrders(freshOrders);
     };
 
-    const handleDeleteOrder = async () => {
-        if (orderToDelete) {
-            await deleteOrderFromDB(orderToDelete);
-            setOrders(orders.filter(o => o.id !== orderToDelete.id));
-            setOrderToDelete(null);
-        }
-    };
-
-    const handleExportToExcel = () => {
-        const ws = XLSX.utils.json_to_sheet(filteredOrders);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Orders");
-        XLSX.writeFile(wb, "Orders.xlsx");
-    };
-
     if (!isMounted) return <Skeleton className="h-96 w-full" />;
 
     return (
         <div className="container mx-auto p-4 space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">Orders</h1>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleExportToExcel}><FileSpreadsheet className="mr-2 h-4 w-4" /> Export</Button>
-                    <Button onClick={openOrderDialog}><PlusCircle className="mr-2 h-4 w-4" /> New Order</Button>
-                </div>
+                <Button onClick={openOrderDialog}><PlusCircle className="mr-2 h-4 w-4" /> Place Order</Button>
             </div>
-
             <Input placeholder="Search orders..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="max-w-md" />
-
             <div className="rounded-md border bg-white">
                 <Table>
                     <TableHeader>
@@ -235,14 +237,14 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                             <TableRow key={order.id}>
                                 <TableCell className="font-bold">{order.id}</TableCell>
                                 <TableCell>{order.customerName}</TableCell>
-                                <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
-                                <TableCell className="text-right font-semibold">{formatNumberForDisplay(order.grandTotal)}</TableCell>
+                                <TableCell>{new Date(order.orderDate).toLocaleDateString('en-IN')}</TableCell>
+                                <TableCell className="text-right">{formatNumberForDisplay(order.grandTotal)}</TableCell>
                                 <TableCell className="text-center">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost"><MoreHorizontal /></Button></DropdownMenuTrigger>
-                                        <DropdownMenuContent>
+                                        <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => openEditDialog(order)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleGenerateInvoice(order)}><FileText className="mr-2 h-4 w-4" /> Invoice</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setOrderToPrint(order)}><FileText className="mr-2 h-4 w-4" /> Invoice</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => handleWhatsAppShare(order)}><Share2 className="mr-2 h-4 w-4" /> WhatsApp</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => setOrderToDelete(order)} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -262,7 +264,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                 orders={orders}
                 onOrderAdded={handleAddOrder}
                 onOrderUpdated={handleUpdateOrder}
-                onCustomerAdded={handleAddCustomerSubmit}
+                onCustomerAdded={async (d) => { const c = await addCustomer(d); setCustomers(p => [...p, c]); return c; }}
                 existingOrder={orderToEdit}
             />
 
@@ -271,7 +273,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                     <AlertDialogHeader><AlertDialogTitle>Delete Order?</AlertDialogTitle></AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteOrder} className="bg-red-600">Delete</AlertDialogAction>
+                        <AlertDialogAction onClick={async () => { if(orderToDelete) { await deleteOrderFromDB(orderToDelete); setOrders(orders.filter(o => o.id !== orderToDelete.id)); setOrderToDelete(null); } }} className="bg-red-600">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -279,7 +281,6 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
     );
 }
 
-// --- FULL DIALOG COMPONENT ---
 function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onOrderAdded, onOrderUpdated, onCustomerAdded, existingOrder }: any) {
     const [isWalkIn, setIsWalkIn] = useState(false);
     const [walkInName, setWalkInName] = useState('');
@@ -290,94 +291,57 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     const [currentItem, setCurrentItem] = useState<OrderItemState>(initialItemState);
     const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>('Full Payment');
     const [paymentMode, setPaymentMode] = useState<PaymentMode>('Cash');
-    const [partPaymentAmount, setPartPaymentAmount] = useState('');
     const [deliveryAddress, setDeliveryAddress] = useState('');
     const [isGstInvoice, setIsGstInvoice] = useState(true);
     const [discount, setDiscount] = useState(0);
     const [deliveryFees, setDeliveryFees] = useState(0);
     const [previousBalance, setPreviousBalance] = useState(0);
-    const [isFirstOrder, setIsFirstOrder] = useState(false);
 
     const isEditMode = !!existingOrder;
     const { toast } = useToast();
 
+    const resetForm = useCallback(() => {
+        setIsWalkIn(false); setWalkInName(''); setWalkInPhone(''); setCustomerId('');
+        setOrderDate(new Date().toISOString().split('T')[0]); setItems([]);
+        setCurrentItem(initialItemState); setDeliveryAddress(''); setDiscount(0); setDeliveryFees(0); setPreviousBalance(0);
+    }, []);
+
     useEffect(() => {
         if (isOpen && existingOrder) {
-            const walkIn = existingOrder.customerName.includes('(Walk-In)');
-            setIsWalkIn(walkIn);
-            if (walkIn) {
-                setWalkInName(existingOrder.customerName.replace(' (Walk-In)', ''));
-                setCustomerId('');
-            } else {
-                setCustomerId(existingOrder.customerId);
-            }
-            setItems(existingOrder.items.map((i: any) => ({
-                ...i, 
-                quantity: String(i.quantity), price: String(i.price), 
-                totalWeight: i.totalWeight ? String(i.totalWeight) : '',
-                stock: (products.find((p: any) => p.id === i.productId)?.stock || 0) + i.quantity
-            })));
+            setIsWalkIn(existingOrder.customerName.includes('(Walk-In)'));
+            setCustomerId(existingOrder.customerId);
+            setOrderDate(new Date(existingOrder.orderDate).toISOString().split('T')[0]);
+            setItems(existingOrder.items.map((i: any) => ({ ...i, quantity: String(i.quantity), price: String(i.price), totalWeight: i.totalWeight ? String(i.totalWeight) : '' })));
             setDeliveryAddress(existingOrder.deliveryAddress || '');
             setPaymentTerm(existingOrder.paymentTerm);
             setPreviousBalance(existingOrder.previousBalance || 0);
-        }
-    }, [isOpen, existingOrder, products]);
+        } else if (isOpen) { resetForm(); }
+    }, [isOpen, existingOrder, resetForm]);
 
     useEffect(() => {
-        const getBalance = async () => {
-            if (customerId && !isEditMode) {
-                const bal = await getCustomerBalance(customerId);
-                setPreviousBalance(bal);
-            }
-        };
-        getBalance();
+        if (customerId && !isEditMode) getCustomerBalance(customerId).then(setPreviousBalance);
     }, [customerId, isEditMode]);
 
-    const { currentInvoiceTotal, grandTotal } = useMemo(() => {
-        const base = items.reduce((sum, item) => {
-            const q = parseFloat(item.quantity) || 0;
-            const p = parseFloat(item.price) || 0;
-            const weight = isWeightBased(item.category) ? (parseFloat(item.totalWeight) || (q * item.weightPerUnit)) : q;
+    const math = useMemo(() => {
+        const base = items.reduce((sum, i) => {
+            const q = parseFloat(i.quantity) || 0;
+            const p = parseFloat(i.price) || 0;
+            const weight = isWeightBased(i.category) ? (parseFloat(i.totalWeight) || (q * i.weightPerUnit)) : q;
             const line = p * weight;
-            const gst = isGstInvoice ? line * (parseFloat(item.gst) / 100) : 0;
-            return sum + line + gst;
+            return sum + line + (isGstInvoice ? line * (parseFloat(i.gst) / 100) : 0);
         }, 0);
-        return { currentInvoiceTotal: base, grandTotal: base + deliveryFees - discount + previousBalance };
+        return { total: base, grand: base + deliveryFees - discount + previousBalance };
     }, [items, isGstInvoice, deliveryFees, discount, previousBalance]);
-
-    const handleAddItem = () => {
-        if (!currentItem.productId || !currentItem.quantity) return;
-        setItems([...items, currentItem]);
-        setCurrentItem(initialItemState);
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isWalkIn && !customerId) return toast({ title: "Select Customer" });
+        let fId = customerId, fName = customers.find(c => c.id === customerId)?.name || '';
+        if (isWalkIn) { const nc = await onCustomerAdded({ name: `${walkInName} (Walk-In)`, phone: walkInPhone, address: 'Walk-In' }); fId = nc.id; fName = nc.name; }
         
-        let finalId = customerId;
-        let finalName = customers.find(c => c.id === customerId)?.name || '';
-
-        if (isWalkIn) {
-            const newC = await onCustomerAdded({ name: `${walkInName} (Walk-In)`, phone: walkInPhone, address: 'Walk-In' });
-            finalId = newC.id;
-            finalName = newC.name;
-        }
-
         const data = {
-            customerId: finalId,
-            customerName: finalName,
-            orderDate,
+            customerId: fId, customerName: fName, orderDate: new Date(orderDate).toISOString(),
             items: items.map(i => ({ ...i, quantity: parseFloat(i.quantity), price: parseFloat(i.price), totalWeight: parseFloat(i.totalWeight) || 0 })),
-            total: currentInvoiceTotal,
-            grandTotal,
-            previousBalance,
-            deliveryFees,
-            discount,
-            paymentTerm,
-            deliveryAddress,
-            isGstInvoice,
-            status: paymentTerm === 'Full Payment' ? 'Fulfilled' : 'Pending'
+            total: math.total, grandTotal: math.grand, previousBalance, deliveryFees, discount, paymentTerm, deliveryAddress, isGstInvoice, status: paymentTerm === 'Full Payment' ? 'Fulfilled' : 'Pending'
         };
 
         isEditMode ? await onOrderUpdated({ ...existingOrder, ...data }) : await onOrderAdded(data);
@@ -386,88 +350,63 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden">
-                <DialogHeader className="p-4 border-b bg-slate-50">
-                    <DialogTitle>{isEditMode ? 'Edit Order' : 'New Order'}</DialogTitle>
-                </DialogHeader>
+            <DialogContent className="max-w-5xl h-[92vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="p-4 border-b bg-slate-50"><DialogTitle>{isEditMode ? 'Edit Order' : 'New Order'}</DialogTitle></DialogHeader>
                 <ScrollArea className="flex-1 p-6">
                     <form id="order-form" onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Card className="p-4 space-y-4">
-                                <Label className="font-bold">Customer Selection</Label>
-                                <RadioGroup value={isWalkIn ? 'walk-in' : 'existing'} onValueChange={(v) => setIsWalkIn(v === 'walk-in')} className="flex gap-4">
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="existing" id="ex" /><Label htmlFor="ex">Existing</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="walk-in" id="wi" /><Label htmlFor="wi" className="text-blue-600">Walk-In</Label></div>
+                                <Label className="font-bold">Customer</Label>
+                                <RadioGroup value={isWalkIn ? 'wi' : 'ex'} onValueChange={(v) => setIsWalkIn(v === 'wi')} className="flex gap-4">
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="ex" id="ex" /><Label htmlFor="ex">Existing</Label></div>
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="wi" id="wi" /><Label htmlFor="wi">Walk-In</Label></div>
                                 </RadioGroup>
-                                {isWalkIn ? (
-                                    <div className="space-y-2 animate-in fade-in">
-                                        <Input placeholder="Name" value={walkInName} onChange={(e) => setWalkInName(e.target.value)} />
-                                        <Input placeholder="Phone" value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} />
-                                    </div>
-                                ) : (
-                                    <Combobox options={customers.map(c => ({ value: c.id, label: c.name }))} value={customerId} onValueChange={setCustomerId} />
-                                )}
+                                {isWalkIn ? <div className="space-y-2"><Input placeholder="Name" value={walkInName} onChange={(e) => setWalkInName(e.target.value)} /><Input placeholder="Phone" value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} /></div> : <Combobox options={customers.map(c => ({ value: c.id, label: c.name }))} value={customerId} onValueChange={setCustomerId} />}
                             </Card>
                             <Card className="p-4 space-y-4">
                                 <Label className="font-bold">Logistics</Label>
                                 <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
-                                <Textarea placeholder="Delivery Address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
+                                <Textarea placeholder="Delivery Address *" required value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
                             </Card>
                         </div>
-
-                        <Card className="p-4">
+                        <Card className="p-4 space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                                <div className="md:col-span-4"><Label>Product</Label><Combobox options={products.map(p => ({ value: p.id, label: p.name }))} value={currentItem.productId} onValueChange={(v) => {
-                                    const p = products.find(x => x.id === v);
-                                    if (p) setCurrentItem({ ...currentItem, productId: p.id, price: String(p.salePrice), gst: String(p.gst), category: p.category, weightPerUnit: p.weightPerUnit || 0, stock: p.stock });
-                                }} /></div>
+                                <div className="md:col-span-4"><Label>Product</Label><Combobox options={products.map(p => ({ value: p.id, label: p.name }))} value={currentItem.productId} onValueChange={(v) => { const p = products.find(x => x.id === v); if(p) setCurrentItem({ ...currentItem, productId: p.id, price: String(p.salePrice), gst: String(p.gst), category: p.category, weightPerUnit: p.weightPerUnit || 0 }); }} /></div>
                                 <div className="md:col-span-2"><Label>Qty</Label><Input type="number" value={currentItem.quantity} onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })} /></div>
-                                {isWeightBased(currentItem.category) && <div className="md:col-span-2"><Label>Total Weight (kg)</Label><Input type="number" placeholder="Override" value={currentItem.totalWeight} onChange={(e) => setCurrentItem({ ...currentItem, totalWeight: e.target.value })} /></div>}
+                                {isWeightBased(currentItem.category) && <div className="md:col-span-2"><Label>Weight (kg)</Label><Input type="number" value={currentItem.totalWeight} onChange={(e) => setCurrentItem({ ...currentItem, totalWeight: e.target.value })} /></div>}
                                 <div className="md:col-span-2"><Label>Price</Label><Input type="number" value={currentItem.price} onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })} /></div>
-                                <div className="md:col-span-2"><Button type="button" onClick={handleAddItem} className="w-full">Add</Button></div>
+                                <div className="md:col-span-2"><Button type="button" onClick={() => { if(currentItem.productId && currentItem.quantity) { setItems([...items, currentItem]); setCurrentItem(initialItemState); } }} className="w-full">Add</Button></div>
                             </div>
-                        </Card>
-
-                        <div className="rounded-md border">
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Qty</TableHead><TableHead>Weight</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {items.map((item, idx) => (
-                                        <TableRow key={idx}>
-                                            <TableCell>{products.find(p => p.id === item.productId)?.name}</TableCell>
-                                            <TableCell>{item.quantity}</TableCell>
-                                            <TableCell>{isWeightBased(item.category) ? (item.totalWeight || (parseFloat(item.quantity) * item.weightPerUnit)) : '-'}</TableCell>
-                                            <TableCell className="text-right">{formatNumberForDisplay(parseFloat(item.price) * (isWeightBased(item.category) ? (parseFloat(item.totalWeight) || parseFloat(item.quantity) * item.weightPerUnit) : parseFloat(item.quantity)))}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
+                            <Table className="border mt-4">
+                                <TableHeader className="bg-slate-50"><TableRow><TableHead>Item</TableHead><TableHead>Qty</TableHead><TableHead className="text-right">Total</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                                <TableBody>{items.map((it, idx) => (
+                                    <TableRow key={idx}>
+                                        <TableCell>{products.find(p => p.id === it.productId)?.name}</TableCell>
+                                        <TableCell>{it.quantity}</TableCell>
+                                        <TableCell className="text-right">{formatNumberForDisplay(parseFloat(it.price) * (parseFloat(it.totalWeight) || parseFloat(it.quantity)))}</TableCell>
+                                        <TableCell className="text-center"><Button variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
+                                    </TableRow>
+                                ))}</TableBody>
                             </Table>
-                        </div>
-
+                        </Card>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Card className="p-4 space-y-4">
-                                <Label className="font-bold">Payment</Label>
-                                <RadioGroup value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as any)} className="flex gap-4">
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Full Payment" id="fp" /><Label htmlFor="fp">Paid</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="Credit" id="cr" /><Label htmlFor="cr">Credit</Label></div>
-                                </RadioGroup>
-                                <div className="flex items-center space-x-2"><Checkbox id="gst" checked={isGstInvoice} onCheckedChange={(v) => setIsGstInvoice(!!v)} /><Label htmlFor="gst">Include GST</Label></div>
+                                <Label className="font-bold">Payment & Mode</Label>
+                                <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Full Payment">Full Payment</SelectItem><SelectItem value="Credit">Credit</SelectItem></SelectContent></Select>
+                                <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="UPI">UPI</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem><SelectItem value="Cheque">Cheque</SelectItem></SelectContent></Select>
+                                <div className="flex items-center space-x-2"><Checkbox id="gst" checked={isGstInvoice} onCheckedChange={(v) => setIsGstInvoice(!!v)} /><Label htmlFor="gst">GST Invoice</Label></div>
                             </Card>
-                            <Card className="p-4 space-y-2 bg-slate-50">
-                                <div className="flex justify-between text-sm"><span>Items Total (Inc. GST):</span><span>{formatNumberForDisplay(currentInvoiceTotal)}</span></div>
-                                <div className="flex justify-between items-center text-sm"><span>Delivery:</span><Input className="w-24 h-8" type="number" value={deliveryFees} onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)} /></div>
-                                <div className="flex justify-between items-center text-sm"><span>Discount:</span><Input className="w-24 h-8" type="number" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} /></div>
-                                <div className="flex justify-between text-sm text-red-600"><span>Prev. Balance:</span><span>{formatNumberForDisplay(previousBalance)}</span></div>
-                                <Separator />
-                                <div className="flex justify-between text-xl font-bold"><span>Grand Total:</span><span className="text-primary">{formatNumberForDisplay(grandTotal)}</span></div>
+                            <Card className="p-4 space-y-2 bg-slate-50 text-sm">
+                                <div className="flex justify-between"><span>Items Total:</span><span>{formatNumberForDisplay(math.total)}</span></div>
+                                <div className="flex justify-between items-center"><span>Delivery:</span><Input className="w-24 h-8" type="number" value={deliveryFees} onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)} /></div>
+                                <div className="flex justify-between items-center"><span>Discount:</span><Input className="w-24 h-8" type="number" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} /></div>
+                                <div className="flex justify-between text-red-600"><span>Prev Balance:</span><span>{formatNumberForDisplay(previousBalance)}</span></div>
+                                <Separator /><div className="flex justify-between text-xl font-bold"><span>Grand Total:</span><span className="text-primary">{formatNumberForDisplay(math.grand)}</span></div>
                             </Card>
                         </div>
                     </form>
                 </ScrollArea>
-                <DialogFooter className="p-4 border-t bg-white">
-                    <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button form="order-form" type="submit" disabled={items.length === 0}>Confirm Order</Button>
-                </DialogFooter>
+                <DialogFooter className="p-4 border-t bg-white"><Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button><Button form="order-form" type="submit" disabled={items.length === 0}>Confirm Order</Button></DialogFooter>
             </DialogContent>
         </Dialog>
     );
