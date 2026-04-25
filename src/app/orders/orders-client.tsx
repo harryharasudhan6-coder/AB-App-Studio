@@ -50,7 +50,6 @@ const initialItemState: OrderItemState = {
     calculationType: 'Per Unit', category: 'General', weightPerUnit: 0, totalWeight: '' 
 };
 
-// --- UTILS ---
 const formatNumberForDisplay = (value: number | undefined) => {
     const amount = value ?? 0;
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(amount);
@@ -68,9 +67,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
     const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
-    const [dateFilter, setDateFilter] = useState('All');
     const [isMounted, setIsMounted] = useState(false);
-    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>(null);
 
     useEffect(() => {
         setIsMounted(true);
@@ -78,44 +75,9 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
         if (savedLogo) setLogoUrl(savedLogo);
     }, []);
 
-    const openOrderDialog = async () => {
-        setIsLoading(true);
-        try {
-            const freshProducts = await getProducts();
-            setProducts(freshProducts);
-            setIsAddOrderOpen(true);
-        } catch(e) {
-            toast({ title: 'Error', description: 'Could not fetch products.', variant: 'destructive'});
-        } finally { setIsLoading(false); }
-    };
-
-    const openEditDialog = async (order: Order) => {
-        setIsLoading(true);
-        try {
-            const freshProducts = await getProducts();
-            setProducts(freshProducts);
-            setOrderToEdit(order);
-        } catch(e) {
-            toast({ title: 'Error', description: 'Could not fetch products.', variant: 'destructive'});
-        } finally { setIsLoading(false); }
-    };
-
-    const sortedOrders = useMemo(() => {
-        let sortableItems = [...orders];
-        if (sortConfig) {
-            sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key] ?? '';
-                const bValue = b[sortConfig.key] ?? '';
-                if (sortConfig.key === 'orderDate') return sortConfig.direction === 'ascending' ? new Date(aValue as string).getTime() - new Date(bValue as string).getTime() : new Date(bValue as string).getTime() - new Date(aValue as string).getTime();
-                return sortConfig.direction === 'ascending' ? (aValue < bValue ? -1 : 1) : (aValue > bValue ? -1 : 1);
-            });
-        }
-        return sortableItems;
-    }, [orders, sortConfig]);
-
-    const filteredOrders = useMemo(() => {
-        return sortedOrders.filter(o => o.status !== 'Deleted' && (o.id.toLowerCase().includes(searchQuery.toLowerCase()) || o.customerName.toLowerCase().includes(searchQuery.toLowerCase())));
-    }, [sortedOrders, searchQuery]);
+    useEffect(() => {
+        if (orderToPrint) handlePrint();
+    }, [orderToPrint]);
 
     const handlePrint = async () => {
         if (!orderToPrint) return;
@@ -186,7 +148,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
             if(orderToPrint.previousBalance > 0) addTotalRow("Previous Balance:", orderToPrint.previousBalance);
             finalY += 4;
             doc.setFontSize(12).setFont('helvetica', 'bold').text(`Grand Total: ${formatNumberForDisplay(orderToPrint.grandTotal)}`, pageWidth / 2, finalY, { align: 'center' });
-            doc.save(`INV-${orderToPrint.id}.pdf`);
+            doc.save(`INV-${orderToPrint.id.replace('ORD','INV')}.pdf`);
         } catch (e) { toast({ title: "Error", description: "PDF Generation Failed" }); }
         finally { setIsLoading(false); setOrderToPrint(null); }
     };
@@ -199,26 +161,13 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
         window.open(`https://wa.me/91${customer.phone.replace(/\D/g, '')}?text=${message}`, '_blank');
     };
 
-    const handleAddOrder = async (data: any) => {
-        const res = await addOrder(data);
-        const { orders: freshOrders } = await getCoreOrderData();
-        setOrders(freshOrders);
-        return res;
-    };
-
-    const handleUpdateOrder = async (data: any) => {
-        await updateOrder(data);
-        const { orders: freshOrders } = await getCoreOrderData();
-        setOrders(freshOrders);
-    };
-
     if (!isMounted) return <Skeleton className="h-96 w-full" />;
 
     return (
         <div className="container mx-auto p-4 space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">Orders</h1>
-                <Button onClick={openOrderDialog}><PlusCircle className="mr-2 h-4 w-4" /> Place Order</Button>
+                <Button onClick={() => setIsAddOrderOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Place Order</Button>
             </div>
             <Input placeholder="Search orders..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="max-w-md" />
             <div className="rounded-md border bg-white">
@@ -233,7 +182,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredOrders.map(order => (
+                        {orders.filter(o => o.id.toLowerCase().includes(searchQuery.toLowerCase()) || o.customerName.toLowerCase().includes(searchQuery.toLowerCase())).map(order => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-bold">{order.id}</TableCell>
                                 <TableCell>{order.customerName}</TableCell>
@@ -243,10 +192,10 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => openEditDialog(order)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setOrderToEdit(order)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => setOrderToPrint(order)}><FileText className="mr-2 h-4 w-4" /> Invoice</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => handleWhatsAppShare(order)}><Share2 className="mr-2 h-4 w-4" /> WhatsApp</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setOrderToDelete(order)} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={async () => { await deleteOrderFromDB(order); setOrders(orders.filter(o => o.id !== order.id)); }} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
@@ -262,21 +211,11 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                 customers={customers}
                 products={products}
                 orders={orders}
-                onOrderAdded={handleAddOrder}
-                onOrderUpdated={handleUpdateOrder}
+                onOrderAdded={async (d) => { const res = await addOrder(d); setOrders(prev => [res, ...prev]); return res; }}
+                onOrderUpdated={async (d) => { await updateOrder(d); setOrders(prev => prev.map(o => o.id === d.id ? d : o)); }}
                 onCustomerAdded={async (d) => { const c = await addCustomer(d); setCustomers(p => [...p, c]); return c; }}
                 existingOrder={orderToEdit}
             />
-
-            <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Delete Order?</AlertDialogTitle></AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => { if(orderToDelete) { await deleteOrderFromDB(orderToDelete); setOrders(orders.filter(o => o.id !== orderToDelete.id)); setOrderToDelete(null); } }} className="bg-red-600">Delete</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </div>
     );
 }
@@ -291,6 +230,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     const [currentItem, setCurrentItem] = useState<OrderItemState>(initialItemState);
     const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>('Full Payment');
     const [paymentMode, setPaymentMode] = useState<PaymentMode>('Cash');
+    const [partPaymentAmount, setPartPaymentAmount] = useState('');
     const [deliveryAddress, setDeliveryAddress] = useState('');
     const [isGstInvoice, setIsGstInvoice] = useState(true);
     const [discount, setDiscount] = useState(0);
@@ -304,6 +244,7 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
         setIsWalkIn(false); setWalkInName(''); setWalkInPhone(''); setCustomerId('');
         setOrderDate(new Date().toISOString().split('T')[0]); setItems([]);
         setCurrentItem(initialItemState); setDeliveryAddress(''); setDiscount(0); setDeliveryFees(0); setPreviousBalance(0);
+        setPartPaymentAmount('');
     }, []);
 
     useEffect(() => {
@@ -350,13 +291,13 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl h-[92vh] flex flex-col p-0 overflow-hidden">
+            <DialogContent className="max-w-5xl h-[94vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-4 border-b bg-slate-50"><DialogTitle>{isEditMode ? 'Edit Order' : 'New Order'}</DialogTitle></DialogHeader>
                 <ScrollArea className="flex-1 p-6">
                     <form id="order-form" onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Card className="p-4 space-y-4">
-                                <Label className="font-bold">Customer</Label>
+                                <Label className="font-bold">Customer Selection</Label>
                                 <RadioGroup value={isWalkIn ? 'wi' : 'ex'} onValueChange={(v) => setIsWalkIn(v === 'wi')} className="flex gap-4">
                                     <div className="flex items-center space-x-2"><RadioGroupItem value="ex" id="ex" /><Label htmlFor="ex">Existing</Label></div>
                                     <div className="flex items-center space-x-2"><RadioGroupItem value="wi" id="wi" /><Label htmlFor="wi">Walk-In</Label></div>
@@ -364,46 +305,83 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                 {isWalkIn ? <div className="space-y-2"><Input placeholder="Name" value={walkInName} onChange={(e) => setWalkInName(e.target.value)} /><Input placeholder="Phone" value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} /></div> : <Combobox options={customers.map(c => ({ value: c.id, label: c.name }))} value={customerId} onValueChange={setCustomerId} />}
                             </Card>
                             <Card className="p-4 space-y-4">
-                                <Label className="font-bold">Logistics</Label>
-                                <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+                                <Label className="font-bold">Date & GST</Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+                                    <div className="flex items-center space-x-2"><Checkbox id="gst" checked={isGstInvoice} onCheckedChange={(v) => setIsGstInvoice(!!v)} /><Label htmlFor="gst">GST Invoice</Label></div>
+                                </div>
                                 <Textarea placeholder="Delivery Address *" required value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
                             </Card>
                         </div>
+
                         <Card className="p-4 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                                <div className="md:col-span-4"><Label>Product</Label><Combobox options={products.map(p => ({ value: p.id, label: p.name }))} value={currentItem.productId} onValueChange={(v) => { const p = products.find(x => x.id === v); if(p) setCurrentItem({ ...currentItem, productId: p.id, price: String(p.salePrice), gst: String(p.gst), category: p.category, weightPerUnit: p.weightPerUnit || 0 }); }} /></div>
-                                <div className="md:col-span-2"><Label>Qty</Label><Input type="number" value={currentItem.quantity} onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })} /></div>
-                                {isWeightBased(currentItem.category) && <div className="md:col-span-2"><Label>Weight (kg)</Label><Input type="number" value={currentItem.totalWeight} onChange={(e) => setCurrentItem({ ...currentItem, totalWeight: e.target.value })} /></div>}
-                                <div className="md:col-span-2"><Label>Price</Label><Input type="number" value={currentItem.price} onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })} /></div>
-                                <div className="md:col-span-2"><Button type="button" onClick={() => { if(currentItem.productId && currentItem.quantity) { setItems([...items, currentItem]); setCurrentItem(initialItemState); } }} className="w-full">Add</Button></div>
+                            <Label className="font-bold">Payment Setup</Label>
+                            <RadioGroup value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as any)} className="flex gap-6 pb-2">
+                                <div className="flex items-center space-x-2"><RadioGroupItem value="Full Payment" id="fp" /><Label htmlFor="fp">Full Payment</Label></div>
+                                <div className="flex items-center space-x-2"><RadioGroupItem value="Part Payment" id="pp" /><Label htmlFor="pp">Part Payment</Label></div>
+                                <div className="flex items-center space-x-2"><RadioGroupItem value="Credit" id="cr" /><Label htmlFor="cr">Credit</Label></div>
+                            </RadioGroup>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Payment Mode</Label>
+                                    <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as any)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Cash">Cash</SelectItem>
+                                            <SelectItem value="UPI">UPI</SelectItem>
+                                            <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                                            <SelectItem value="Cheque">Cheque</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {paymentTerm === 'Part Payment' && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                                        <Label>Advance Amount</Label>
+                                        <Input type="number" placeholder="Enter Amount" value={partPaymentAmount} onChange={(e) => setPartPaymentAmount(e.target.value)} />
+                                    </div>
+                                )}
                             </div>
-                            <Table className="border mt-4">
-                                <TableHeader className="bg-slate-50"><TableRow><TableHead>Item</TableHead><TableHead>Qty</TableHead><TableHead className="text-right">Total</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                                <TableBody>{items.map((it, idx) => (
-                                    <TableRow key={idx}>
-                                        <TableCell>{products.find(p => p.id === it.productId)?.name}</TableCell>
-                                        <TableCell>{it.quantity}</TableCell>
-                                        <TableCell className="text-right">{formatNumberForDisplay(parseFloat(it.price) * (parseFloat(it.totalWeight) || parseFloat(it.quantity)))}</TableCell>
-                                        <TableCell className="text-center"><Button variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
-                                    </TableRow>
-                                ))}</TableBody>
-                            </Table>
                         </Card>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Card className="p-4 space-y-4">
-                                <Label className="font-bold">Payment & Mode</Label>
-                                <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Full Payment">Full Payment</SelectItem><SelectItem value="Credit">Credit</SelectItem></SelectContent></Select>
-                                <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="UPI">UPI</SelectItem><SelectItem value="Bank Transfer">Bank Transfer</SelectItem><SelectItem value="Cheque">Cheque</SelectItem></SelectContent></Select>
-                                <div className="flex items-center space-x-2"><Checkbox id="gst" checked={isGstInvoice} onCheckedChange={(v) => setIsGstInvoice(!!v)} /><Label htmlFor="gst">GST Invoice</Label></div>
-                            </Card>
-                            <Card className="p-4 space-y-2 bg-slate-50 text-sm">
-                                <div className="flex justify-between"><span>Items Total:</span><span>{formatNumberForDisplay(math.total)}</span></div>
-                                <div className="flex justify-between items-center"><span>Delivery:</span><Input className="w-24 h-8" type="number" value={deliveryFees} onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)} /></div>
-                                <div className="flex justify-between items-center"><span>Discount:</span><Input className="w-24 h-8" type="number" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} /></div>
-                                <div className="flex justify-between text-red-600"><span>Prev Balance:</span><span>{formatNumberForDisplay(previousBalance)}</span></div>
-                                <Separator /><div className="flex justify-between text-xl font-bold"><span>Grand Total:</span><span className="text-primary">{formatNumberForDisplay(math.grand)}</span></div>
-                            </Card>
-                        </div>
+
+                        <Card className="p-4 space-y-4">
+                            <Label className="font-bold">Product Selection</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                                <div className="md:col-span-4"><Label>Product</Label><Combobox options={products.map(p => ({ value: p.id, label: p.name }))} value={currentItem.productId} onValueChange={(v) => { 
+                                    const p = products.find(x => x.id === v); 
+                                    if(p) setCurrentItem({ ...currentItem, productId: p.id, price: String(p.salePrice), gst: String(p.gst), category: p.category, weightPerUnit: p.weightPerUnit || 0 }); 
+                                }} /></div>
+                                <div className="md:col-span-2"><Label>Qty</Label><Input type="number" value={currentItem.quantity} onChange={(e) => {
+                                    const qty = e.target.value;
+                                    const weight = isWeightBased(currentItem.category) ? (parseFloat(qty) * currentItem.weightPerUnit).toFixed(2) : '';
+                                    setCurrentItem({ ...currentItem, quantity: qty, totalWeight: weight });
+                                }} /></div>
+                                {isWeightBased(currentItem.category) && <div className="md:col-span-2"><Label>Weight (kg)</Label><Input type="number" value={currentItem.totalWeight} onChange={(e) => setCurrentItem({ ...currentItem, totalWeight: e.target.value })} /></div>}
+                                <div className="md:col-span-2"><Label>Price/Rate</Label><Input type="number" value={currentItem.price} onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })} /></div>
+                                <div className="md:col-span-2"><Button type="button" onClick={() => { if(currentItem.productId && currentItem.quantity) { setItems([...items, currentItem]); setCurrentItem(initialItemState); } }} className="w-full">Add Item</Button></div>
+                            </div>
+                            <div className="border rounded-md mt-4">
+                                <Table>
+                                    <TableHeader className="bg-slate-50"><TableRow><TableHead>Item</TableHead><TableHead>Qty</TableHead><TableHead>Weight</TableHead><TableHead className="text-right">Total</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                                    <TableBody>{items.map((it, idx) => (
+                                        <TableRow key={idx}>
+                                            <TableCell>{products.find(p => p.id === it.productId)?.name}</TableCell>
+                                            <TableCell>{it.quantity}</TableCell>
+                                            <TableCell>{isWeightBased(it.category) ? `${parseFloat(it.totalWeight).toFixed(2)} kg` : '-'}</TableCell>
+                                            <TableCell className="text-right">{formatNumberForDisplay(parseFloat(it.price) * (isWeightBased(it.category) ? parseFloat(it.totalWeight) : parseFloat(it.quantity)))}</TableCell>
+                                            <TableCell className="text-center"><Button variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
+                                        </TableRow>
+                                    ))}</TableBody>
+                                </Table>
+                            </div>
+                        </Card>
+
+                        <Card className="p-4 space-y-2 bg-slate-50 text-sm ml-auto max-w-md">
+                            <div className="flex justify-between"><span>Items Subtotal:</span><span>{formatNumberForDisplay(math.total)}</span></div>
+                            <div className="flex justify-between items-center"><span>Delivery Fees:</span><Input className="w-24 h-8" type="number" value={deliveryFees} onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)} /></div>
+                            <div className="flex justify-between items-center"><span>Discount:</span><Input className="w-24 h-8" type="number" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} /></div>
+                            <div className="flex justify-between text-red-600 font-medium"><span>Prev. Balance:</span><span>{formatNumberForDisplay(previousBalance)}</span></div>
+                            <Separator /><div className="flex justify-between text-xl font-bold"><span>Grand Total:</span><span className="text-primary">{formatNumberForDisplay(math.grand)}</span></div>
+                        </Card>
                     </form>
                 </ScrollArea>
                 <DialogFooter className="p-4 border-t bg-white"><Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button><Button form="order-form" type="submit" disabled={items.length === 0}>Confirm Order</Button></DialogFooter>
