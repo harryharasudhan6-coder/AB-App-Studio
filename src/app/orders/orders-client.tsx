@@ -46,7 +46,6 @@ const initialItemState: OrderItemState = {
     calculationType: 'Per Unit', category: 'General', weightPerUnit: 0, totalWeight: '' 
 };
 
-// --- UTILS ---
 const formatINR = (val: number | undefined) => `INR ${(val ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function OrdersClient({ orders: initialOrders, customers: initialCustomers, products: initialProducts }: { orders: Order[], customers: Customer[], products: Product[] }) {
@@ -90,8 +89,16 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
             doc.setFont('helvetica', 'normal').text([customer.name, customer.address || 'N/A', `Phone: ${customer.phone || 'N/A'}`], margin, 63);
 
             doc.setFont('helvetica', 'bold').text('GSTIN: 33DMLPA8598D1ZU', pageWidth - margin, 58, { align: 'right' });
-            doc.setFontSize(11).setTextColor(orderToPrint.paymentTerm === 'Credit' ? 200 : 0, 0, 0).text(orderToPrint.paymentTerm === 'Credit' ? 'CREDIT INVOICE' : 'INVOICE', pageWidth - margin, 66, { align: 'right' });
-            doc.setTextColor(0).setFontSize(10).text([`Invoice No: ${orderToPrint.id.replace('ORD', 'INV')}`, `Date: ${new Date(orderToPrint.orderDate).toLocaleDateString('en-IN')}`], pageWidth - margin, 74, { align: 'right' });
+            
+            // --- COLOR CODED STATUS LOGIC ---
+            let statusColor: [number, number, number] = [0, 128, 0]; // Default Green
+            let statusText = "FULL PAYMENT";
+            if (orderToPrint.paymentTerm === 'Credit') { statusColor = [200, 0, 0]; statusText = "CREDIT"; }
+            else if (orderToPrint.paymentTerm === 'Part Payment') { statusColor = [0, 0, 255]; statusText = "PART PAYMENT"; }
+
+            doc.setFontSize(11).setTextColor(...statusColor).setFont('helvetica', 'bold').text(statusText, pageWidth - margin, 66, { align: 'right' });
+            doc.setTextColor(0).setFontSize(10).setFont('helvetica', 'normal');
+            doc.text([`Invoice No: ${orderToPrint.id.replace('ORD', 'INV')}`, `Date: ${new Date(orderToPrint.orderDate).toLocaleDateString('en-IN')}`], pageWidth - margin, 74, { align: 'right' });
 
             const tableBody = orderToPrint.items.map(item => [
                 item.productName,
@@ -107,25 +114,38 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                 head: [['Item Description', 'Qty', 'Weight', 'Rate', 'GST', 'Total']],
                 body: tableBody,
                 theme: 'grid',
-                headStyles: { fillColor: [204, 229, 255], textColor: [0, 0, 0] }
+                headStyles: { fillColor: [204, 229, 255], textColor: [0, 0, 0], fontStyle: 'bold' }
             });
 
             let finalY = (doc as any).previousAutoTable.finalY + 10;
-            doc.text(`Subtotal: ${formatINR((orderToPrint.total ?? 0) + (orderToPrint.deliveryFees ?? 0) - (orderToPrint.discount ?? 0))}`, pageWidth - margin, finalY, { align: 'right' });
+            const subtotal = (orderToPrint.total ?? 0) + (orderToPrint.deliveryFees ?? 0) - (orderToPrint.discount ?? 0);
+            doc.text(`Subtotal: ${formatINR(subtotal)}`, pageWidth - margin, finalY, { align: 'right' });
             finalY += 6;
-            if(orderToPrint.previousBalance > 0) { doc.text(`Previous Balance: ${formatINR(orderToPrint.previousBalance)}`, pageWidth - margin, finalY, { align: 'right' }); finalY += 8; }
-            doc.setFontSize(12).setFont('helvetica', 'bold').text(`Grand Total: ${formatINR(orderToPrint.grandTotal)}`, pageWidth / 2, finalY, { align: 'center' });
+
+            if(orderToPrint.previousBalance > 0) { 
+                doc.text(`Previous Balance: ${formatINR(orderToPrint.previousBalance)}`, pageWidth - margin, finalY, { align: 'right' }); 
+                finalY += 6; 
+            }
+
+            // Show Partial Payment logic if applicable
+            const paid = orderToPrint.payments?.reduce((s, p) => s + p.amount, 0) || 0;
+            if (paid > 0 && orderToPrint.paymentTerm !== 'Full Payment') {
+                doc.setFont('helvetica', 'bold').text(`Amount Paid: ${formatINR(paid)}`, pageWidth - margin, finalY, { align: 'right' });
+                finalY += 6;
+                doc.text(`Balance Due: ${formatINR(orderToPrint.grandTotal - paid)}`, pageWidth - margin, finalY, { align: 'right' });
+                finalY += 4;
+            }
+
+            doc.setFontSize(12).setFont('helvetica', 'bold').text(`Grand Total: ${formatINR(orderToPrint.grandTotal)}`, pageWidth / 2, finalY + 4, { align: 'center' });
             doc.save(`INV-${orderToPrint.id}.pdf`);
         } catch (e) { toast({ title: "PDF Error" }); }
         finally { setIsLoading(false); setOrderToPrint(null); }
     };
 
-    if (!isMounted) return <Skeleton className="h-96 w-full" />;
-
     return (
         <div className="container mx-auto p-4 space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
+                <h1 className="text-3xl font-bold">Orders</h1>
                 <Button onClick={() => setIsAddOrderOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Place Order</Button>
             </div>
             <div className="rounded-md border bg-white">
@@ -143,20 +163,14 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                             <TableRow key={order.id}>
                                 <TableCell className="font-bold">{order.id}</TableCell>
                                 <TableCell>{order.customerName}</TableCell>
-                                <TableCell className="text-right">{formatINR(order.grandTotal)}</TableCell>
+                                <TableCell className="text-right font-semibold">{formatINR(order.grandTotal)}</TableCell>
                                 <TableCell className="text-center">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => setOrderToEdit(order)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => setOrderToPrint(order)}><FileText className="mr-2 h-4 w-4" /> Invoice</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={async () => { 
-                                                setIsLoading(true);
-                                                await deleteOrderFromDB(order); 
-                                                setOrders(prev => prev.filter(o => o.id !== order.id));
-                                                setIsLoading(false);
-                                                toast({ title: "Deleted Successfully" });
-                                            }} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={async () => { await deleteOrderFromDB(order); setOrders(prev => prev.filter(o => o.id !== order.id)); }} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
@@ -169,9 +183,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
             <AddOrderDialog
                 isOpen={isAddOrderOpen || !!orderToEdit}
                 onOpenChange={(open) => { if (!open) { setIsAddOrderOpen(false); setOrderToEdit(null); } }}
-                customers={customers}
-                products={products}
-                orders={orders}
+                customers={customers} products={products} orders={orders}
                 onOrderAdded={async (d) => { const res = await addOrder(d); setOrders(prev => [res, ...prev]); return res; }}
                 onOrderUpdated={async (d) => { await updateOrder(d); setOrders(prev => prev.map(o => o.id === d.id ? d : o)); }}
                 onCustomerAdded={async (d) => { const c = await addCustomer(d); setCustomers(p => [...p, c]); return c; }}
@@ -193,13 +205,20 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
     const [paymentMode, setPaymentMode] = useState<PaymentMode>('Cash');
     const [partPaymentAmount, setPartPaymentAmount] = useState('');
     const [deliveryAddress, setDeliveryAddress] = useState('');
-    const [isGstInvoice, setIsGstInvoice] = useState(true);
+    const [deliveryDate, setDeliveryDate] = useState('');
+    const [isGstInvoice, setIsGstInvoice] = useState(false);
     const [discount, setDiscount] = useState(0);
     const [deliveryFees, setDeliveryFees] = useState(0);
     const [previousBalance, setPreviousBalance] = useState(0);
 
     const isEditMode = !!existingOrder;
-    const { toast } = useToast();
+
+    const resetForm = useCallback(() => {
+        setIsWalkIn(false); setWalkInName(''); setWalkInPhone(''); setCustomerId('');
+        setOrderDate(new Date().toISOString().split('T')[0]); setItems([]);
+        setCurrentItem(initialItemState); setDeliveryAddress(''); setDiscount(0); setDeliveryFees(0); 
+        setPreviousBalance(0); setDeliveryDate(''); setIsGstInvoice(false); setPartPaymentAmount('');
+    }, []);
 
     useEffect(() => {
         if (isOpen && existingOrder) {
@@ -208,10 +227,12 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
             setOrderDate(new Date(existingOrder.orderDate).toISOString().split('T')[0]);
             setItems(existingOrder.items.map((i: any) => ({ ...i, quantity: String(i.quantity), price: String(i.price), totalWeight: i.totalWeight ? String(i.totalWeight) : '' })));
             setDeliveryAddress(existingOrder.deliveryAddress || '');
+            setDeliveryDate(existingOrder.deliveryDate ? new Date(existingOrder.deliveryDate).toISOString().split('T')[0] : '');
             setPaymentTerm(existingOrder.paymentTerm);
             setPreviousBalance(existingOrder.previousBalance || 0);
-        }
-    }, [isOpen, existingOrder]);
+            setIsGstInvoice(existingOrder.isGstInvoice ?? false);
+        } else if (isOpen) { resetForm(); }
+    }, [isOpen, existingOrder, resetForm]);
 
     const math = useMemo(() => {
         const base = items.reduce((sum, i) => {
@@ -224,31 +245,39 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
         return { total: base, grand: base + deliveryFees - discount + previousBalance };
     }, [items, isGstInvoice, deliveryFees, discount, previousBalance]);
 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        let fId = customerId, fName = customers.find(c => c.id === customerId)?.name || '';
+        if (isWalkIn) { const nc = await onCustomerAdded({ name: `${walkInName} (Walk-In)`, phone: walkInPhone, address: 'Walk-In' }); fId = nc.id; fName = nc.name; }
+        
+        const paidNow = parseFloat(partPaymentAmount) || 0;
+        const data = {
+            customerId: fId, customerName: fName, orderDate: new Date(orderDate).toISOString(),
+            deliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : null,
+            items: items.map(i => ({ ...i, quantity: parseFloat(i.quantity), price: parseFloat(i.price), totalWeight: parseFloat(i.totalWeight) || 0 })),
+            total: math.total, grandTotal: math.grand, previousBalance, deliveryFees, discount, paymentTerm, deliveryAddress, isGstInvoice,
+            payments: paymentTerm === 'Full Payment' ? [{amount: math.grand, date: new Date().toISOString(), mode: paymentMode}] : (paidNow > 0 ? [{amount: paidNow, date: new Date().toISOString(), mode: paymentMode}] : []),
+            status: paymentTerm === 'Full Payment' ? 'Fulfilled' : 'Pending'
+        };
+        isEditMode ? await onOrderUpdated({ ...existingOrder, ...data }) : await onOrderAdded(data);
+        onOpenChange(false);
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-5xl h-[94vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-4 border-b bg-slate-50"><DialogTitle>{isEditMode ? 'Edit Order' : 'New Order'}</DialogTitle></DialogHeader>
                 <ScrollArea className="flex-1 p-6">
-                    <form className="space-y-6" onSubmit={async (e) => {
-                        e.preventDefault();
-                        const data = {
-                            customerId: isWalkIn ? (await onCustomerAdded({name: `${walkInName} (Walk-In)`, phone: walkInPhone})).id : customerId,
-                            customerName: isWalkIn ? `${walkInName} (Walk-In)` : customers.find(c => c.id === customerId)?.name,
-                            orderDate: new Date(orderDate).toISOString(),
-                            items: items.map(i => ({ ...i, quantity: parseFloat(i.quantity), price: parseFloat(i.price), totalWeight: parseFloat(i.totalWeight) || 0 })),
-                            total: math.total, grandTotal: math.grand, previousBalance, deliveryFees, discount, paymentTerm, deliveryAddress, isGstInvoice, status: paymentTerm === 'Full Payment' ? 'Fulfilled' : 'Pending'
-                        };
-                        isEditMode ? await onOrderUpdated({ ...existingOrder, ...data }) : await onOrderAdded(data);
-                        onOpenChange(false);
-                    }}>
+                    <form id="order-form" onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Card className="p-4 space-y-4">
-                                <Label className="font-bold">1. Customer Details</Label>
+                                <Label className="font-bold">1. Customer Info</Label>
                                 <RadioGroup value={isWalkIn ? 'wi' : 'ex'} onValueChange={(v) => setIsWalkIn(v === 'wi')} className="flex gap-4">
                                     <div className="flex items-center space-x-2"><RadioGroupItem value="ex" id="ex" /><Label htmlFor="ex">Regular</Label></div>
-                                    <div className="flex items-center space-x-2"><RadioGroupItem value="wi" id="wi" /><Label htmlFor="wi">New Walk-In</Label></div>
+                                    <div className="flex items-center space-x-2"><RadioGroupItem value="wi" id="wi" /><Label htmlFor="wi">Walk-In</Label></div>
                                 </RadioGroup>
                                 {isWalkIn ? <div className="grid grid-cols-2 gap-2"><Input placeholder="Name" value={walkInName} onChange={(e) => setWalkInName(e.target.value)} /><Input placeholder="Phone" value={walkInPhone} onChange={(e) => setWalkInPhone(e.target.value)} /></div> : <Combobox options={customers.map(c => ({ value: c.id, label: c.name }))} value={customerId} onValueChange={setCustomerId} />}
+                                <div className="pt-2"><Label>Order Date *</Label><Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></div>
                             </Card>
                             <Card className="p-4 space-y-4">
                                 <Label className="font-bold">2. Payment Setup</Label>
@@ -259,41 +288,47 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, orders, onO
                                 </RadioGroup>
                                 <div className="grid grid-cols-2 gap-2">
                                     <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="UPI">UPI</SelectItem><SelectItem value="Cheque">Cheque</SelectItem></SelectContent></Select>
-                                    <div className="flex items-center space-x-2"><Checkbox id="gst" checked={isGstInvoice} onCheckedChange={(v) => setIsGstInvoice(!!v)} /><Label htmlFor="gst">GST</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="gst" checked={isGstInvoice} onCheckedChange={(v) => setIsGstInvoice(!!v)} /><Label htmlFor="gst">GST Invoice</Label></div>
                                 </div>
+                                {paymentTerm === 'Part Payment' && <Input type="number" placeholder="Enter Paid Amount" value={partPaymentAmount} onChange={(e) => setPartPaymentAmount(e.target.value)} />}
                             </Card>
                         </div>
 
                         <Card className="p-4 space-y-4 border-blue-100 bg-blue-50/20">
                             <Label className="font-bold">3. Product Selection</Label>
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                                <div className="md:col-span-4"><Label>Product</Label><Combobox options={products.map(p => ({ value: p.id, label: p.name }))} value={currentItem.productId} onValueChange={(v) => { 
+                                <div className="md:col-span-4"><Combobox options={products.map(p => ({ value: p.id, label: p.name }))} value={currentItem.productId} onValueChange={(v) => { 
                                     const p = products.find(x => x.id === v); 
                                     if(p) setCurrentItem({ ...currentItem, productId: p.id, price: String(p.salePrice || p.price || 0), gst: String(p.gst || 0), category: p.category, weightPerUnit: p.weightPerUnit || 0 }); 
                                 }} /></div>
-                                <div className="md:col-span-2"><Label>Qty</Label><Input type="number" value={currentItem.quantity} onChange={(e) => {
+                                <div className="md:col-span-2"><Input type="number" placeholder="Qty" value={currentItem.quantity} onChange={(e) => {
                                     const q = e.target.value;
                                     setCurrentItem({ ...currentItem, quantity: q, totalWeight: isWeightBased(currentItem.category) ? (parseFloat(q) * currentItem.weightPerUnit).toFixed(2) : '' });
                                 }} /></div>
-                                {isWeightBased(currentItem.category) && <div className="md:col-span-2"><Label>Weight (kg)</Label><Input type="number" value={currentItem.totalWeight} onChange={(e) => setCurrentItem({ ...currentItem, totalWeight: e.target.value })} /></div>}
-                                <div className="md:col-span-2"><Label>Price/Rate</Label><Input type="number" value={currentItem.price} onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })} /></div>
-                                <div className="md:col-span-2"><Button type="button" onClick={() => { if(currentItem.productId && currentItem.quantity) { setItems([...items, currentItem]); setCurrentItem(initialItemState); } }} className="w-full bg-blue-600">Add</Button></div>
+                                {isWeightBased(currentItem.category) && <div className="md:col-span-2"><Input type="number" placeholder="Weight kg" value={currentItem.totalWeight} onChange={(e) => setCurrentItem({ ...currentItem, totalWeight: e.target.value })} /></div>}
+                                <div className="md:col-span-2"><Input type="number" placeholder="Price" value={currentItem.price} onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })} /></div>
+                                <div className="md:col-span-2"><Button type="button" onClick={() => { if(currentItem.productId && currentItem.quantity) { setItems([...items, currentItem]); setCurrentItem(initialItemState); } }} className="w-full bg-blue-600 text-white">Add</Button></div>
                             </div>
-                            <Table className="border bg-white"><TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Qty</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
+                            <Table className="border bg-white"><TableHeader className="bg-slate-50"><TableRow><TableHead>Item</TableHead><TableHead>Qty</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
                             <TableBody>{items.map((it, idx) => (
                                 <TableRow key={idx}><TableCell>{products.find(p => p.id === it.productId)?.name}</TableCell><TableCell>{it.quantity}</TableCell><TableCell className="text-right">{formatINR(parseFloat(it.price) * (parseFloat(it.totalWeight) || parseFloat(it.quantity)))}</TableCell></TableRow>
                             ))}</TableBody></Table>
                         </Card>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Card className="p-4 space-y-2"><Label>Delivery Address</Label><Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} /></Card>
+                            <Card className="p-4 space-y-4">
+                                <Label className="font-bold">4. Logistics</Label>
+                                <div className="space-y-2"><Label>Delivery Date</Label><Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></div>
+                                <div className="space-y-2"><Label>Delivery Address *</Label><Textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} /></div>
+                            </Card>
                             <Card className="p-4 space-y-1 bg-slate-50">
-                                <div className="flex justify-between"><span>Subtotal:</span><span>{formatINR(math.total)}</span></div>
+                                <div className="flex justify-between"><span>Items Total:</span><span>{formatINR(math.total)}</span></div>
                                 <div className="flex justify-between items-center"><span>Delivery:</span><Input className="w-20 h-7" type="number" value={deliveryFees} onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)} /></div>
-                                <div className="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span className="text-blue-600">{formatINR(math.grand)}</span></div>
+                                <div className="flex justify-between items-center text-red-600"><span>Prev Balance:</span><span>{formatINR(previousBalance)}</span></div>
+                                <Separator /><div className="flex justify-between text-xl font-bold border-t pt-2"><span>Grand Total:</span><span className="text-blue-600">{formatINR(math.grand)}</span></div>
                             </Card>
                         </div>
-                        <DialogFooter className="p-4 border-t bg-white gap-2"><Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit">Save Order</Button></DialogFooter>
+                        <DialogFooter className="p-4 border-t bg-white gap-2"><Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" className="bg-blue-600 text-white">Confirm Order</Button></DialogFooter>
                     </form>
                 </ScrollArea>
             </DialogContent>
