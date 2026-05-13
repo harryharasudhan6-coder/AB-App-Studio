@@ -38,6 +38,7 @@ type OrderItemState = {
 const WEIGHT_BASED_CATEGORIES: string[] = ['Rings', 'Rods', 'Steel', 'Rods & Rings', 'Savukku Stick'];
 const isWeightBased = (category: string) => WEIGHT_BASED_CATEGORIES.includes(category);
 
+// Currency Utility: Now standardized to "INR" as requested
 const formatINR = (val: number | undefined) => `INR ${(val ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function OrdersClient({ orders: initialOrders, customers: initialCustomers, products: initialProducts }: { orders: Order[], customers: Customer[], products: Product[] }) {
@@ -48,9 +49,14 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
     const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isMounted, setIsMounted] = useState(false);
+    const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
     const { toast } = useToast();
 
-    useEffect(() => { setIsMounted(true); }, []);
+    useEffect(() => { 
+        setIsMounted(true);
+        const savedLogo = localStorage.getItem('companyLogo');
+        if (savedLogo) setLogoUrl(savedLogo);
+    }, []);
 
     const refreshData = async () => {
         const data = await getCoreOrderData();
@@ -64,35 +70,40 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
         const margin = 14;
         const pageWidth = doc.internal.pageSize.getWidth();
 
-        doc.setFontSize(18).setFont('helvetica', 'bold').text("AB AGENCY", pageWidth / 2, 20, { align: 'center' });
-        doc.setFontSize(9).setFont('helvetica', 'normal').text('No.1, Ayyanchery main road, Urapakkam, Chennai - 603210', pageWidth / 2, 26, { align: 'center' });
-        doc.text('Email: abagency1977@gmail.com | MOB: 95511 95505 / 95001 82975', pageWidth / 2, 31, { align: 'center' });
+        // 1. Logo Implementation [cite: 1, 2]
+        if (logoUrl) {
+            try {
+                doc.addImage(logoUrl, 'PNG', pageWidth / 2 - 15, 10, 30, 25);
+            } catch (e) {
+                console.error("Logo generation failed", e);
+            }
+        }
 
-        doc.setFontSize(10).setFont('helvetica', 'bold').text('Billed To:', margin, 45);
-        doc.setFont('helvetica', 'normal').text([customer?.name || order.customerName, customer?.address || 'N/A', `Phone: ${customer?.phone || 'N/A'}`], margin, 50);
+        // Header [cite: 1, 2, 3]
+        doc.setFontSize(18).setFont('helvetica', 'bold').text("AB AGENCY", pageWidth / 2, 40, { align: 'center' });
+        doc.setFontSize(9).setFont('helvetica', 'normal').text('No.1, Ayyanchery main road, Urapakkam, Chennai - 603210', pageWidth / 2, 46, { align: 'center' });
+        doc.text('Email: abagency1977@gmail.com | MOB: 95511 95505 / 95001 82975', pageWidth / 2, 51, { align: 'center' });
+
+        // Billed To & Info [cite: 4, 9, 10, 11, 12, 14]
+        doc.setFontSize(10).setFont('helvetica', 'bold').text('Billed To:', margin, 65);
+        doc.setFont('helvetica', 'normal').text([customer?.name || order.customerName, customer?.address || 'N/A', `Phone: ${customer?.phone || 'N/A'}`], margin, 70);
         
-        doc.setFont('helvetica', 'bold').text(`GSTIN: 33DMLPA8598D1ZU`, pageWidth - margin, 45, { align: 'right' });
+        doc.setFont('helvetica', 'bold').text(`GSTIN: 33DMLPA8598D1ZU`, pageWidth - margin, 65, { align: 'right' });
         const isCredit = order.paymentTerm === 'Credit';
-        doc.setTextColor(isCredit ? 255 : 0, 0, 0).text(isCredit ? "CREDIT INVOICE" : "FULL PAYMENT INVOICE", pageWidth - margin, 52, { align: 'right' });
-        doc.setTextColor(0).setFont('helvetica', 'normal').text([`Invoice No: ${order.id.replace('ORD', 'INV')}`, `Date: ${new Date(order.orderDate).toLocaleDateString('en-IN')}`], pageWidth - margin, 59, { align: 'right' });
+        doc.setTextColor(isCredit ? 255 : 0, isCredit ? 0 : 128, 0).text(isCredit ? "CREDIT INVOICE" : "FULL PAYMENT INVOICE", pageWidth - margin, 72, { align: 'right' });
+        doc.setTextColor(0).setFont('helvetica', 'normal').text([`Invoice No: ${order.id.replace('ORD', 'INV')}`, `Date: ${new Date(order.orderDate).toLocaleDateString('en-IN')}`], pageWidth - margin, 79, { align: 'right' });
 
-        const body = order.items.map(i => [
-            i.productName, 
-            `${i.quantity} pcs`, 
-            i.totalWeight ? `${i.totalWeight} kg` : 'N/A', 
-            formatINR(i.price), 
-            i.gst ? `${i.gst}%` : 'N/A', 
-            formatINR(i.price * (i.totalWeight || i.quantity))
-        ]);
-
+        // Table [cite: 8]
+        const body = order.items.map(i => [i.productName, `${i.quantity} pcs`, i.totalWeight ? `${i.totalWeight} kg` : 'N/A', formatINR(i.price), i.gst ? `${i.gst}%` : 'N/A', formatINR(i.price * (i.totalWeight || i.quantity))]);
         (doc as any).autoTable({ 
-            startY: 80, 
+            startY: 95, 
             head: [['Item Description', 'Quantity', 'Total Weight', 'Rate', 'GST', 'Total']], 
             body, 
             theme: 'grid', 
             headStyles: { fillColor: [204, 229, 255], textColor: [0, 0, 0] } 
         });
 
+        // Totals [cite: 15, 16]
         let finalY = (doc as any).previousAutoTable.finalY + 10;
         const totalGst = order.items.reduce((s, i) => s + (i.price * (i.totalWeight || i.quantity) * ((i.gst || 0) / 100)), 0);
 
@@ -108,9 +119,25 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
 
         doc.text(`Delivery Fees: ${formatINR(order.deliveryFees)}`, pageWidth - margin, finalY, { align: 'right' });
         finalY += 8;
-        doc.setFontSize(12).setFont('helvetica', 'bold').text(`Grand Total: ${formatINR(order.grandTotal)}`, pageWidth / 2, finalY + 5, { align: 'center' });
+
+        // Visual Indicator Box for Grand Total
+        const boxColor = isCredit ? [255, 235, 238] : [222, 247, 236]; // Red tint vs Green tint
+        const textColor = isCredit ? [220, 38, 38] : [22, 101, 52]; // Dark Red vs Dark Green
+        
+        doc.setFillColor(boxColor[0], boxColor[1], boxColor[2]).roundedRect(margin, finalY, pageWidth - (margin * 2), 10, 2, 2, 'F');
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]).setFontSize(12).setFont('helvetica', 'bold').text(`Grand Total: ${formatINR(order.grandTotal)}`, pageWidth / 2, finalY + 6, { align: 'center' });
 
         doc.save(`INV-${order.id}.pdf`);
+    };
+
+    const handleDelete = async (order: Order) => {
+        try {
+            await deleteOrderFromDB(order);
+            await refreshData();
+            toast({ title: "Order Deleted Successfully" });
+        } catch (e) {
+            toast({ title: "Deletion Failed", variant: "destructive" });
+        }
     };
 
     return (
@@ -119,6 +146,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                 <h1 className="text-4xl font-bold">Orders</h1>
                 <Button onClick={() => setIsAddOrderOpen(true)} className="bg-blue-600"><PlusCircle className="mr-2 h-4 w-4" /> Place Order</Button>
             </div>
+            <div className="relative max-w-md"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search orders..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" /></div>
             <div className="rounded-md border bg-white overflow-x-auto shadow-sm">
                 <Table>
                     <TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>Customer</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-center">Actions</TableHead></TableRow></TableHeader>
@@ -134,7 +162,7 @@ export function OrdersClient({ orders: initialOrders, customers: initialCustomer
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => setOrderToEdit(order)}>Edit</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => handlePrint(order)}>Invoice</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={async () => { await deleteOrderFromDB(order); await refreshData(); }} className="text-red-600">Delete</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleDelete(order)} className="text-red-600">Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
@@ -199,22 +227,15 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, refreshData
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-6xl h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl">
                 <DialogHeader className="p-4 border-b bg-slate-50"><DialogTitle>Place New Order</DialogTitle></DialogHeader>
-                <ScrollArea ref={scrollRef} className="flex-1 p-6" onKeyDown={(e) => {
-                    if (e.key === 'ArrowDown') scrollRef.current?.scrollBy(0, 60);
-                    if (e.key === 'ArrowUp') scrollRef.current?.scrollBy(0, -60);
-                }}>
+                <ScrollArea ref={scrollRef} className="flex-1 p-6">
                     <div className="space-y-6">
-                        {/* 1. ORDER DETAILS (Screenshot 2) */}
                         <Card className="border shadow-none">
                             <CardContent className="p-6 space-y-4">
                                 <h3 className="font-bold text-lg">Order Details</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                                     <div className="space-y-2">
                                         <Label>Customer Name</Label>
-                                        <div className="flex gap-2">
-                                            <Combobox options={customers.map((c:any) => ({ value: c.id, label: c.name }))} value={customerId} onValueChange={setCustomerId} placeholder="Select a customer" />
-                                            <Button variant="outline" onClick={() => {}}>Add New</Button>
-                                        </div>
+                                        <Combobox options={customers.map((c:any) => ({ value: c.id, label: c.name }))} value={customerId} onValueChange={setCustomerId} placeholder="Select a customer" />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Order Date</Label>
@@ -232,22 +253,8 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, refreshData
                                         <div className="flex items-center space-x-2"><RadioGroupItem value="Credit" id="cr" /><Label htmlFor="cr">Credit</Label></div>
                                     </RadioGroup>
                                 </div>
-                                <div className="space-y-2 max-w-md">
-                                    <Label className="text-slate-600">Payment Mode</Label>
-                                    <Select value={paymentMode} onValueChange={(v:any) => setPaymentMode(v)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Cash">Cash</SelectItem>
-                                            <SelectItem value="UPI">UPI</SelectItem>
-                                            <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                                            <SelectItem value="Cheque">Cheque</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
                             </CardContent>
                         </Card>
-
-                        {/* 2. ADD ITEMS (Screenshot 3) */}
                         <Card className="border shadow-none">
                             <CardContent className="p-6 space-y-4">
                                 <h3 className="font-bold text-lg">Add Items</h3>
@@ -265,49 +272,22 @@ function AddOrderDialog({ isOpen, onOpenChange, customers, products, refreshData
                                     <div><Label>Sale Price</Label><Input type="number" value={currentItem.price} onChange={(e) => setCurrentItem({ ...currentItem, price: e.target.value })} /></div>
                                     <Button type="button" onClick={() => { if(currentItem.productId) { setItems([...items, currentItem]); setCurrentItem({ productId: '', quantity: '', price: '', cost: '', gst: '', stock: 0, category: 'General', weightPerUnit: 0, totalWeight: '' }); } }} className="bg-blue-600">Add Item</Button>
                                 </div>
-                                <h4 className="font-semibold text-slate-700 pt-4">Order Items</h4>
-                                <Table className="border rounded-md mt-2">
-                                    <TableHeader className="bg-slate-50"><TableRow>
-                                        <TableHead>Item</TableHead><TableHead>Quantity</TableHead><TableHead>Total Wt.</TableHead><TableHead>Price</TableHead><TableHead>GST</TableHead><TableHead>Total</TableHead><TableHead>Actions</TableHead>
-                                    </TableRow></TableHeader>
-                                    <TableBody>
-                                        {items.map((it, idx) => {
-                                            const basis = isWeightBased(it.category) ? parseFloat(it.totalWeight) : parseFloat(it.quantity);
-                                            const total = parseFloat(it.price) * basis * (1 + (parseFloat(it.gst)/100));
-                                            return (
-                                                <TableRow key={idx}>
-                                                    <TableCell>{products.find(p=>p.id===it.productId)?.name}</TableCell>
-                                                    <TableCell>{it.quantity}</TableCell>
-                                                    <TableCell>{it.totalWeight || '-'}</TableCell>
-                                                    <TableCell>{formatINR(parseFloat(it.price))}</TableCell>
-                                                    <TableCell>{it.gst}%</TableCell>
-                                                    <TableCell>{formatINR(total)}</TableCell>
-                                                    <TableCell><Button variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
                             </CardContent>
                         </Card>
-
-                        {/* 3. DELIVERY & SUMMARY (Screenshot 3 Bottom) */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Card className="border shadow-none">
                                 <CardContent className="p-6 space-y-4">
                                     <h3 className="font-bold text-lg">Delivery Details</h3>
-                                    <div className="space-y-2"><Label>Delivery Date</Label><Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></div>
-                                    <div className="space-y-2"><Label>Delivery Address</Label><Textarea placeholder="Leave blank to use customer's default address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={3} /></div>
+                                    <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
+                                    <Textarea placeholder="Delivery Address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={3} />
                                 </CardContent>
                             </Card>
                             <Card className="border shadow-none">
                                 <CardContent className="p-6 space-y-4">
                                     <h3 className="font-bold text-lg">Order Summary</h3>
-                                    <div className="flex justify-between font-medium"><span>Current Items Total:</span><span>{formatINR(math.total)}</span></div>
+                                    <div className="flex justify-between font-medium"><span>Taxable Total:</span><span>{formatINR(math.total)}</span></div>
                                     <div className="flex justify-between items-center"><Label>Delivery Fees</Label><Input type="number" className="w-24 text-right" value={deliveryFees} onChange={(e) => setDeliveryFees(parseFloat(e.target.value) || 0)} /></div>
-                                    <div className="flex justify-between items-center"><div className="flex items-center space-x-2"><Checkbox id="d" checked={enableDiscount} onCheckedChange={(v)=>setEnableDiscount(!!v)} /><Label htmlFor="d">Discount</Label></div><Input type="number" className="w-24 text-right" disabled={!enableDiscount} value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} /></div>
                                     <Separator />
-                                    <div className="flex justify-between font-medium"><span>Subtotal:</span><span>{formatINR(math.total + deliveryFees)}</span></div>
                                     <div className="flex justify-between text-2xl font-bold text-blue-700 pt-2 border-t"><span>Grand Total:</span><span>{formatINR(math.grand)}</span></div>
                                 </CardContent>
                             </Card>
